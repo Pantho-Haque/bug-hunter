@@ -1,8 +1,12 @@
 # CodeQuest 3D — Requirements Teardown
 
+This document defines product constraints and quality requirements. Use the [feature specification](FEATURE_SPEC.md) for player-facing behavior and acceptance contracts.
+
 ## 1. Product definition
 
 **CodeQuest 3D** is a local-first, browser-based 3D adventure in which a child writes small JavaScript programs to guide a chosen boy or girl avatar through missions, collect objects, and unlock a hand-crafted world map. It is an introduction to real JavaScript, not a competitive social network and not a general-purpose cloud IDE.
+
+The movement reference is a child-safe third-person exploration game: a full-body low-poly avatar walks or runs along authored streets, trails, and paths while a camera follows from behind. It is not a request for driving, combat, crime themes, traffic systems, crowds, or a large unrestricted city.
 
 The emotional loop is: **notice an intriguing place → understand a small goal → write/run a short program → see the avatar act → receive specific, kind feedback → unlock a visible next adventure**. It has healthy, legible achievement feedback and player agency—not manipulative streaks, random rewards, scarcity, advertising, or pressure to return.
 
@@ -59,14 +63,14 @@ The opening map is a colorful diorama with five visible but progressively reacha
 
 | Zone              | Coding concept                   | Story / mission fantasy         | Example collectible | Unlock condition              |
 | ----------------- | -------------------------------- | ------------------------------- | ------------------- | ----------------------------- |
-| Meadow of Moves   | sequence, coordinates, functions | Wake the beacon sprites         | Sparks              | Complete 4 core missions      |
-| Echo Forest       | reusable functions               | Teach fireflies a path          | Memory Leaves       | 4 core + 1 optional challenge |
-| Loop Lagoon       | `for`, `while`                   | Repair a repeating tide machine | Tide Pearls         | 4 core missions               |
-| Logic Cliffs      | booleans, `if` / `else`          | Choose safe bridge routes       | Compass Shards      | 4 core missions               |
-| Maker Observatory | variables, arrays, debugging     | Build a personal rescue route   | Star Cores          | 5 core + capstone             |
+| Meadow of Moves   | sequence, facing, interaction     | Wake the beacon sprites         | Sparks              | Available from first launch   |
+| Echo Forest       | reusable functions               | Teach fireflies a path          | Memory Leaves       | Complete M06                  |
+| Loop Lagoon       | `for`, `while`                   | Repair a repeating tide machine | Tide Pearls         | Complete M12                  |
+| Logic Cliffs      | booleans, `if` / `else`          | Choose safe bridge routes       | Compass Shards      | Complete M18                  |
+| Maker Observatory | variables, arrays, debugging     | Build a personal rescue route   | Star Cores          | Complete M24                  |
 
 
-Every zone contains: 4–5 required missions, 2 optional remix missions, 1 discoverable collectible path, and a short “show what you know” checkpoint. Early missions should need 3–8 commands; complexity increases one concept at a time. A level is never locked behind perfect collection or speed.
+Every zone contains six required missions. The sixth mission is a “show what you know” checkpoint. Authored missions may include optional remix goals and collectible paths, but optional content never blocks the 30-mission route. Early missions should need 3–8 commands; complexity increases one concept at a time. A level is never locked behind perfect collection or speed.
 
 ### Child-centered feedback rules
 
@@ -88,7 +92,7 @@ Priority: **Must** = MVP release gate; **Should** = first post-MVP; **Could** = 
 | ID    | Requirement                                                                                                                             | Priority | Acceptance criteria                                                                                  |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
 | FR-01 | Start with one tap/click and no account, email, age field, analytics identifier, or consent wall.                                       | Must     | A fresh install starts a playable intro offline after assets are cached.                             |
-| FR-02 | Let the player choose a boy or girl **fully rigged 3D avatar**, then choose name, skin-tone range, hair, clothing color, and unlocked accessories from child-safe preset options. | Must | Choice is saved locally; it can be changed in Settings without losing progress. Every approved preset is equally capable. |
+| FR-02 | Let the player choose a boy or girl **fully rigged 3D avatar**, then choose a preset call sign, skin-tone range, hair, clothing color, and unlocked accessories from child-safe options. | Must | Preset identifiers are saved locally and can change in Settings without losing progress. Every approved preset is equally capable. Free-text child names are not stored. |
 | FR-03 | Provide Settings: avatar, audio, accessibility, display/camera, controls, learning/editor, local-data management, and parent/teacher information. | Must | Each setting previews or changes immediately, persists locally, and has a child-readable explanation. Clear requires a child-readable confirmation. |
 | FR-04 | Explain local saving in child-readable language and give a parent/teacher note.                                                         | Must     | No opaque identifiers or remote profile are created.                                                 |
 | FR-05 | Offer an optional local “challenge mode” (personal best moves/runs) after the child understands normal completion.                      | Should   | It is off by default; no timer or score is shown in core learning flow.                              |
@@ -253,6 +257,8 @@ First-launch defaults: standard third-person camera; captions on if narration is
 
 The avatar should feel like the playable character in a third-person open-world game—not a top-down token. Yet the player is programming it, so each movement must make program intent obvious.
 
+Use a stylized low-poly art direction with a complete human silhouette. The avatar has a visible head, torso, arms, legs, hands, feet, hair, clothing, and face. Boy and girl presets share one humanoid rig, controller capsule, speed, abilities, and animation timing. Primitive shapes are acceptable for the engineering Starter only.
+
 - **Camera:** Follow behind the avatar at a comfortable elevated angle. During execution use gentle auto-framing; do not take camera control away for long. Provide camera reset and a static strategic view.
 - **Movement:** `moveForward()` produces a visible walk cycle, footstep/dust cue, and directional marker. `turnLeft()` visibly pivots the body before the next step. Fast-forward changes playback speed, never physics or outcomes.
 - **World reactions:** Nearby collectibles glow subtly; interaction range has a simple prompt and contextual animation. Collection removes the object, updates HUD, and gives a brief sound/visual response.
@@ -297,7 +303,7 @@ Required controls: AST validation or interpreter/transform that blocks imports a
 
 ### MVP — playable learning slice
 
-Ship one polished zone (“Meadow of Moves”) with 5 missions, 2 optional missions, one chosen avatar presentation flow, 3D playfield, minimap, pause briefing, analogous examples, safe run/step/restart loop, JavaScript editor/lint/completion for the starter API, local save, settings, and accessibility baseline. The goal is to prove that an 8–12-year-old can learn the loop—not to build five zones at once.
+Ship one polished six-mission zone (“Meadow of Moves”) with optional goals inside authored missions, one chosen avatar presentation flow, 3D playfield, minimap, pause briefing, analogous examples, safe run/step/restart loop, JavaScript editor/lint/completion for the starter API, local save, settings, and accessibility baseline. The goal is to prove that an 8–12-year-old can learn the loop before building the other four zones.
 
 ### Release 1
 
@@ -336,7 +342,7 @@ Add all five zones, functions/loops/conditionals/variables/arrays/debugging, cap
 1. Define the simulation contract, level data schema, save schema, and sandbox threat model.
 2. Build one rectangular test arena with deterministic movement/collection and command trace.
 3. Add the editor, lint/completion, run/step/cancel, safe error states, and test harness.
-4. Implement the first five missions and briefing/hint/example pattern.
+4. Implement the first six missions and briefing/hint/example pattern.
 5. Add the polished map, avatar choice, minimap, feedback, settings, and local export.
 6. Conduct child playtests and accessibility/security/performance testing; revise content before expanding zones.
 
@@ -345,7 +351,7 @@ Add all five zones, functions/loops/conditionals/variables/arrays/debugging, cap
 ### Definition of done for each mission
 
 - Learning objective, prerequisites, success state, optional objective, and likely misconceptions are written.
-- Starter code, API documentation, three-tier hint path, and analogous example are present.
+- Starter code, API documentation, four-stage hint path, and analogous example are present.
 - At least two materially different valid solutions work.
 - Failure states are reversible and explain the next useful action.
 - Keyboard/touch path, captions/text alternative, reduced motion, contrast, and narrow-layout checks pass.
@@ -361,7 +367,7 @@ This section is intentionally concrete. **Confirmed** means required. **Proposed
 
 | Topic | Convention | Status | Build rule |
 |---|---|---|---|
-| Game shape | Small, authored mission arenas connected by a visual world map—not one seamless open world. | Confirmed | Each level loads its own simulation scene and returns to the map on exit. |
+| Game shape | Small, authored 3D streets, trails, courtyards, bridges, and rooms connected by a visual world map. | Confirmed | Each level loads its own perspective simulation scene and returns to the map on exit. |
 | Player role | The child programs a human 3D avatar; manual input is preview/exploration only. | Confirmed | Only API command events can satisfy mission objectives. |
 | Camera | Third-person, behind-avatar learning view with optional strategic coding overlay. | Confirmed | No first-person or free combat camera in v1. |
 | Physics style | Grid-aware, deterministic navigation with 3D presentation; not free-form physics platforming. | Proposed | Levels use authored nodes/cells and facing directions. |
@@ -400,6 +406,14 @@ Camera values are authored per level: `minDistance`, `maxDistance`, preferred ya
 ### 7A.4 Avatar, animation, and interaction convention
 
 Boy and girl presentations use one shared skeleton contract, collision capsule, movement timing, and gameplay API. Differences are visual presets only—never speed, collision, or ability differences.
+
+| Character property | Production convention | Prototype gate |
+|---|---|---|
+| Form | Complete stylized low-poly human with a readable silhouette at gameplay distance | Recognizable from the default camera on the minimum display size |
+| Rig | One humanoid skeleton with root, hips, spine, head, arm, hand, leg, and foot joints | Walk, run, pivot, interact, puzzled, celebrate, and reset clips retarget without mesh-specific code |
+| Presets | Boy and girl base presentations plus child-safe hair, skin-tone, and clothing options | Every preset uses the same capsule, speed, reach, and animation timings |
+| Geometry | Proposed cap of 12,000 visible triangles for the player at the highest v1 quality tier | Establish the final cap during the target-device greybox spike |
+| Materials | Shared, compressed texture atlas or a small palette-based material set | Changing a preset does not trigger a new gameplay bundle or shader path |
 
 | Animation state | Trigger | Gameplay rule |
 |---|---|---|
@@ -447,6 +461,7 @@ These are prototype caps until the hardware spike establishes final targets.
 | Resource | Cap per active mission arena | Rule |
 |---|---:|---|
 | Character rigs | 1 player + 0–3 simple NPCs | NPCs optional before MVP proof. |
+| Player geometry | 12,000 visible triangles proposed; 4,000-triangle fallback | Validate both tiers on the minimum school device. |
 | Visible collectibles | 30 | Prioritize silhouettes/readability. |
 | Shadow lights | 1 directional + 2 local | Bake/static-light remaining scenery. |
 | Textures | 1K main character/material group; 512 most props | Compressed GPU textures; shared atlases/materials. |

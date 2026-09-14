@@ -1,5 +1,7 @@
 # CodeQuest 3D — 30-Mission Level Design
 
+This document defines the curriculum sequence and build contract for all 30 required missions. It describes target release content, not the current Starter shell. Use the [feature specification](FEATURE_SPEC.md) for shared interaction behavior.
+
 ## Design contract
 
 This is the production mission plan for the requirements in `GAME_REQUIREMENTS_TEARDOWN.md`. Missions are authored, deterministic 3D puzzle arenas. The player writes JavaScript to command a third-person 3D avatar; manual controls are Preview-only and cannot complete a challenge. Each mission has one core concept, a visible objective, a non-spoiling analogous example, progressive hints, and at least two valid solutions unless marked otherwise.
@@ -16,7 +18,97 @@ This is the production mission plan for the requirements in `GAME_REQUIREMENTS_T
 
 ## Global mission format
 
-Every level opens with a pausing card: story sentence, goal, concept, success checklist, Read Aloud, Preview, analogous example, and Start. The play layout is left 3D scene/minimap/HUD and right code editor/console. “Coding View” shows grid cells, facing, interaction range, current line, and route preview. Required collectible count is always explicit; optional collectibles never block progression.
+Every level opens with a pausing card: story sentence, goal, concept, success checklist, Read Aloud, Preview, analogous example, and Start. The play layout is left 3D scene/minimap/HUD and right code editor/console. Each scene stages its puzzle on a street, trail, courtyard, bridge, dock, or room with visible depth, landmarks, and a walkable route. “Coding View” shows grid cells, facing, interaction range, current line, and route preview. Required collectible count is always explicit; optional collectibles never block progression.
+
+## Learning and validation contract
+
+Each mission separates three concerns:
+
+- **Completion evidence**: simulation-state invariants plus any briefing-declared syntax constraint that decides whether the mission succeeds
+- **Concept evidence**: syntax or trace observations used for feedback and curriculum research
+- **Challenge evidence**: optional efficiency or structure goals that never block the required route
+
+Do not reject a valid world-state solution because its source differs from an authored answer. If a mission requires a JavaScript structure, state that requirement in the briefing and validate a typed syntax summary rather than source-text matching.
+
+### Required level package
+
+Every mission package contains these fields:
+
+```typescript
+interface MissionPackage {
+  identity: MissionIdentity;
+  curriculum: LearningContract;
+  startState: SimulationState;
+  objects: MissionObject[];
+  allowedApi: ApiCapability[];
+  briefing: BriefingContent;
+  starterCode: string;
+  hints: [Hint, Hint, Hint, Hint];
+  analogousExample: ExampleMission;
+  completion: CompletionContract;
+  conceptEvidence: SyntaxOrTraceRule[];
+  knownSolutions: KnownSolution[];
+  expectedFailures: FailureFixture[];
+  accessibility: AccessibilityNotes;
+  budgets: MissionBudgets;
+}
+```
+
+The content validator rejects missing fields, unknown object IDs, inaccessible goals, duplicate rewards, unavailable APIs, unsatisfied known solutions, and examples that can complete the current mission unchanged.
+
+The Level Lab discovers mission packages from the content registry. Every known solution and failure fixture must be directly launchable, so authors and quality-assurance contributors can reproduce a state without changing source code.
+
+### Command and feedback sequence
+
+For every accepted command, the simulation emits one event with command ID, source line, before state, after state, and reason. The editor, trace, avatar, camera, minimap, sound, and heads-up display consume that event. A rejected command emits the same context plus a child-readable reason and suggested next inspection.
+
+### API unlock sequence
+
+| First mission | Capability | Child-facing meaning | Rejected-state feedback |
+|---|---|---|---|
+| M01 | `moveForward()` | Walk one cell in the facing direction | Show the blocker or map edge ahead |
+| M02 | `turnRight()` | Turn 90 degrees without changing cells | Show the new compass direction |
+| M03 | `collect()` | Pick up a collectible on the current cell | Highlight the collectible’s cell or say the cell is empty |
+| M04 | `interact()` | Use an adjacent mission object | Show interaction range and the required facing |
+| M05 | `turnLeft()` | Turn 90 degrees left without changing cells | Show the new compass direction |
+| M16 | `canMoveForward()` | Check whether the next cell is traversable | Return a visible true or false state without moving |
+| M17 | `isPearlHere()` | Check whether the current cell contains a pearl | Return a visible true or false state without collecting |
+| M19 | `isWindSafe()` | Read the current authored wind state | Pair color and motion with text output |
+| M20 | `signPointsLeft()` | Read the seeded sign direction | Test both authored directions in validation |
+| M21 | `hasLantern()` | Read whether the inventory contains a lantern | Keep inventory and condition trace synchronized |
+
+Functions such as `crossBridge()` and `walk(count)` are written by the learner. They are not hidden game APIs.
+
+## Concept progression model
+
+| Missions | Learner mental model | Required visible evidence | Teaching guardrail |
+|---|---|---|---|
+| M01–M06 | A program is an ordered plan that changes the world one command at a time | Current command, source line, facing, route cell, and resulting object state stay synchronized | Introduce one new world action at a time; never require functions to pass |
+| M07–M12 | A function names a useful plan; a parameter lets one plan handle different values | Trace groups commands under the learner’s function name and shows argument values at each call | Accept linear solutions for completion unless the briefing explicitly requires structure |
+| M13–M18 | A loop repeats a visible pattern; its condition or count controls when repetition stops | Iteration counter, condition result, and changed world object appear together in Step mode | Bound every loop and show off-by-one errors as incomplete or extra world actions |
+| M19–M24 | A condition reads state before choosing an action; a variable remembers a value | Predicate result, selected branch, variable change, and affected route are inspectable in one timeline | Test every authored state variant; never teach a branch that only works for one seed |
+| M25–M30 | An array orders related values; debugging compares intended and observed behavior | Current index/value, source line, command trace, and mission-state difference remain linked | Seed one explainable defect at a time before the open capstone |
+
+Each checkpoint changes the story and layout while keeping the assessed concept recognizable. A checkpoint must measure transfer, not memory of a previous route.
+
+### Required concept gates
+
+The following missions require both their world-state invariants and the named syntax or trace evidence. The briefing must state the code constraint in child-readable language. In all other missions, concept evidence changes recap feedback or an optional challenge only.
+
+| Missions | Required evidence |
+|---|---|
+| M07, M09 | Declare and call a function; M09 executes `interact()` inside that call |
+| M08 | Call the same learner-defined function at least twice |
+| M11 | Call one learner-defined function with two distinct numeric arguments |
+| M13–M15 | Execute the repeated route from a `for` loop |
+| M16 | Use a `while` loop whose condition reads `canMoveForward()` |
+| M17 | Use a condition inside a loop to avoid empty collection |
+| M19, M21, M22 | Use a conditional whose predicate reads the named world state |
+| M20 | Use both `if` and `else` paths across the two authored variants |
+| M23 | Declare, update, and compare one learner-owned variable |
+| M25 | Read the authored array by index while activating pads |
+| M26 | Iterate through an array and call a learner-defined delivery function |
+| M28 | Use a corrected loop bound that produces four iterations |
 
 ## Meadow of Moves — learn the command → world connection
 
@@ -26,7 +118,7 @@ Every level opens with a pausing card: story sentence, goal, concept, success ch
 | M02 — Turn Toward Light | L-shaped garden path; beacon is 2 north, 1 east. | `turnRight()` plus `moveForward()`. | Reach beacon without wall hit. Pivot visibly happens before walk. Hint emphasizes facing arrow, not answer. Reward: compass badge. |
 | M03 — Treasure at Your Feet | Straight path ending at a glowing seed pod. | `collect()`; sequence. | Reach pod and collect it. Attempting collect too early triggers puzzled animation and line clue. Reward: Seed Satchel cosmetic. |
 | M04 — The Gate Lever | Yard with a lever adjacent to a closed gate and beacon beyond. | `interact()`; ordered actions. | Use lever, gate state changes, then stand on beacon. Example uses a lantern rather than gate. Reward: restored path on map. |
-| M05 — Short Safe Route | Three paths; one short route contains a decorative blocker and one works. | Review all four commands; Coding View. | Collect two required sparks and reach exit. More than one valid route. Route preview is optional. Reward: trail-color choice. |
+| M05 — Short Safe Route | Three paths; one short route contains a decorative blocker and one works. | `turnLeft()` plus previous commands; Coding View. | Collect two required sparks and reach exit. More than one valid route. Route preview is optional. Reward: trail-color choice. |
 | M06 — Meadow Checkpoint | Mini rescue arena: wake two beacon sprites in a prescribed order. | Sequence; comments as plan. | Interact with both, collect one required spark, exit. Completion recap asks “Which command changed direction?” Reward: Meadow unlocked + optional free explore. |
 
 ## Echo Forest — use functions to name and reuse a route
@@ -37,8 +129,8 @@ Every level opens with a pausing card: story sentence, goal, concept, success ch
 | M08 — Two Sleeping Fireflies | Two lamps use identical approach routes from a hub. | Reuse one function twice. | Wake both lamps; completion accepts repeated code but celebrates reusable function. Hint compares matching route shapes. Reward: firefly companion trail. |
 | M09 — Function Door | A stone door opens after a reusable “ring bell” route. | Function with `interact()` inside. | Use function to ring two bells then pass door. Door reacts only after state machine has both flags. Reward: Echo Key accessory. |
 | M10 — Pack a Path | Branches are visually similar but one turn differs. | Function body review; change one call-site sequence. | Reach three markers using one named shared segment plus individual turns. Hint warns: “Same beginning, different ending.” Reward: forest map restoration. |
-| M11 — Give It a Number | Two bridges require walking different counts after same turn. | Parameterized function, `walk(count)` with fixed lesson-safe implementation. | Call `walk(2)` and `walk(4)` to gather leaves. The editor shows parameter name/value callouts. Reward: leaf cape. |
-| M12 — Echo Checkpoint | Rescue three fireflies around a central tree. | Functions + parameters + plan comments. | Use at least one function; validator allows solutions without a required exact structure only after goal state. Reflection asks where reuse helped. Reward: Echo Forest unlocked. |
+| M11 — Give It a Number | Two bridges require walking different counts after same turn. | Define a parameterized function such as `function walk(count)`. | Call the learner-defined function with two values to gather leaves. The editor shows parameter name/value callouts. Reward: leaf cape. |
+| M12 — Echo Checkpoint | Rescue three fireflies around a central tree. | Functions, parameters, and plan comments. | Rescue all fireflies and reach the exit. Completion uses world state; concept evidence records function reuse for recap feedback. Reward: Echo Forest unlocked. |
 
 ## Loop Lagoon — repeat clear patterns
 
@@ -75,7 +167,80 @@ Every level opens with a pausing card: story sentence, goal, concept, success ch
 
 ## Level implementation checklist
 
-For every mission, the content team supplies: mission data/schema, playable greybox, 3D layout, objective list, allowed API version, starter code, valid solution set, expected trace, one analogous example, three hint levels, accessible copy/captions, required/optional object IDs, map card, reward ID, performance report, and tests for success, each anticipated failure, reload, restart, pause/step, and low-quality mode.
+For every mission, the content team supplies: mission data/schema, playable greybox, 3D layout, objective list, allowed API version, starter code, valid solution set, expected trace, one analogous example, a four-stage hint ladder, accessible copy/captions, required/optional object IDs, map card, reward ID, performance report, and tests for success, each anticipated failure, reload, restart, pause/step, and low-quality mode.
+
+## Build-ready mission validation matrix
+
+The following tables specify the minimum state and test contract. Content authors may add optional objects, but they may not weaken these invariants.
+
+### Meadow of Moves validation
+
+| Mission | Required end-state invariants | Misconception represented in the world | Minimum fixtures |
+|---|---|---|---|
+| M01 | Avatar occupies the beacon cell | Too few or too many forward commands | Exact route, short route failure, boundary rejection, replay |
+| M02 | Avatar occupies the beacon cell with no wall collision | Movement depends on facing | Correct turn route, missing turn, extra turn, wall rejection |
+| M03 | Seed pod is collected and avatar remains in bounds | `collect()` acts on the current cell | Collect on pod, early collect, repeated collect, route reset |
+| M04 | Lever is on, gate is open, avatar occupies beacon | Interaction needs range, facing, and order | Valid sequence, distant interact, wrong facing, closed-gate move |
+| M05 | Both required sparks are collected and avatar occupies exit | A visually short route may be blocked | Two valid routes including a left turn, blocker rejection, one-spark failure, optional route |
+| M06 | Both sprites wake in authored order, one spark is collected, avatar occupies exit | A correct action in the wrong order changes the result | Valid order, reversed order, missing interaction, restart after first flag |
+
+### Echo Forest validation
+
+| Mission | Required end-state invariants | Concept evidence for feedback | Minimum fixtures |
+|---|---|---|---|
+| M07 | Avatar reaches the firefly lamp | One function declaration and one call | Function solution, linear solution, uncalled function, invalid declaration |
+| M08 | Both lamps are awake | The same function executes at least twice | Reused function, repeated linear route, one-lamp failure, extra safe call |
+| M09 | Both bell flags are set, door is open, avatar passes door | An interaction command executes inside a called function | Valid function, second bell omitted, early door move, repeated bell |
+| M10 | All three markers are visited in order | Shared route prefix appears in a function trace | Two valid call-site sequences, wrong final turn, skipped marker, replay |
+| M11 | Both leaves are collected | One learner-defined function receives two distinct numeric arguments | Parameter solution, duplicated fixed functions, wrong count, missing argument |
+| M12 | Three fireflies are awake and avatar occupies exit | Function call and parameter traces support recap feedback | Two valid solutions, one-firefly omission, route collision, hint-assisted retry |
+
+### Loop Lagoon validation
+
+| Mission | Required end-state invariants | Misconception represented in the world | Minimum fixtures |
+|---|---|---|---|
+| M13 | Shell is collected and avatar stops on its cell | Loop count maps to visible iterations | Four iterations, three iterations, five iterations, Step replay |
+| M14 | All three buoy flags are on | Every repetition needs movement and interaction | Complete loop, move-only loop, interact-only loop, early stop |
+| M15 | Perimeter flags are visited and center pearl is collected | The turn belongs inside the repeated pattern | Four-side loop, missing turn, three sides, nested helper solution |
+| M16 | Avatar stops before reef and signal is active | A `while` condition must become false | Predicate solution, fixed-count solution, blocked move, runaway-loop budget |
+| M17 | Three pearls are collected with no empty-cell collection | A condition filters actions inside repetition | Conditional solution, empty collect rejection, missed pearl, boundary error |
+| M18 | Tide wheel receives five complete patterns and avatar exits | Nested repeated actions still execute in order | Loop with helper, expanded sequence, four patterns, partial fifth pattern |
+
+### Logic Cliffs validation
+
+| Mission | Required end-state invariants | Variant coverage | Minimum fixtures |
+|---|---|---|---|
+| M19 | Avatar uses the safe bridge and collects the shard | Safe-left and safe-right wind states | Both seeds, ignored predicate, wrong bridge, text-alternative assertion |
+| M20 | Avatar reaches the goal selected by the sign | Left-sign and right-sign states | One conditional solution across both seeds, left-only code, right-only code |
+| M21 | Avatar has a lantern before entering the tunnel and reaches exit | Starts with and without lantern | Both inventory states, duplicate collect, dark-tunnel rejection, reset |
+| M22 | Bridge is traversable and avatar reaches exit | Broken and intact bridge states | One conditional solution across both seeds, needless safe interact, skipped repair |
+| M23 | Crystal count is at least three and console is active | Crystal positions may vary within authored seeds | Two valid routes, stale local variable, two-crystal failure, counter trace |
+| M24 | All state checks pass and avatar reaches exit | Two authored combinations of flags, lantern, and gate state | Both variants, each isolated failure, pause during branch, full replay |
+
+### Maker Observatory validation
+
+| Mission | Required end-state invariants | Concept evidence for feedback | Minimum fixtures |
+|---|---|---|---|
+| M25 | Three pads activate in the authored color order | Array access visits indices 0 through 2 | Indexed loop, direct indexed calls, wrong order, out-of-range access |
+| M26 | Every station receives its matching sample | Array item and route marker stay synchronized | Loop with function, expanded route, skipped station, duplicate delivery |
+| M27 | Avatar completes the route after the seeded turn defect is fixed | Edited line produces a changed command trace | Correct fix, unchanged starter, opposite wrong turn, reset-to-starter |
+| M28 | All four lenses are lit | Loop bound changes from three effective iterations to four | Correct boundary, unchanged loop, five iterations, Step comparison |
+| M29 | Required crystals, gate, and tide wheel states pass and avatar reaches exit | Plan comments may map to trace groups | Two routes, each missing objective, optional structured solution, reload draft |
+| M30 | Power cells collected, route state accepted, consoles active, avatar on star beacon | Recap summarizes arrays, functions, loops, and conditions observed | Two complete solutions, each objective failure, timeout, cancel, save and replay |
+
+## Mission copy limits
+
+Keep the first view readable for ages 8 through 12:
+
+- Story sentence: 18 words or fewer
+- Goal: one observable verb and 12 words or fewer
+- Checklist: three required items before scrolling
+- Hint: one idea and one suggested inspection
+- Runtime error summary: 16 words or fewer, followed by one next action
+- Object label: two words where possible
+- Technical syntax remains exact JavaScript even when nearby copy uses child-readable language
+
+Read-aloud text must not pronounce punctuation-heavy code as prose. Use authored speech text for API names and syntax examples.
 
 ## Progression validation
 

@@ -1,5 +1,9 @@
 # CodeQuest 3D — Implementation Architecture
 
+This document defines the technical boundaries that implement the [feature specification](FEATURE_SPEC.md). It describes the target release architecture, not the current Starter shell.
+
+Use the [component architecture](COMPONENT_ARCHITECTURE.md) for the production component tree, source placement, ownership rules, and requirement-to-component mapping.
+
 ## 1. Decision summary
 
 Build the first release as one **offline-first TypeScript web application**: Vite + React + React Three Fiber/Three.js for presentation, CodeMirror 6 for the editor, a small deterministic simulation engine owned by the project, IndexedDB for saves, and an isolated code-runner worker/iframe boundary. There is no backend, account, database server, or router-driven API in v1.
@@ -103,7 +107,7 @@ Use React Router in browser history mode. Routes are deep-linkable only when the
 | `/onboarding/avatar` | Boy/girl 3D avatar selection and comfort defaults | Only fresh profile or explicit settings edit | `AvatarPreviewScene`, `AccessibilityDefaults` |
 | `/map` | 3D/illustrated world map and progress | Requires valid local profile; available offline | `WorldMap`, `ZoneCard`, `MapLegend` |
 | `/zone/:zoneId` | Zone detail: concepts, missions, rewards | Validate zone ID and prereqs | `ZoneOverview`, `MissionList` |
-| `/level/:levelId` | Core split playground/editor experience | Validate content, asset readiness, prereqs, save migration | `GameShell`, `SceneCanvas`, `MissionHUD`, `CodeEditor`, `RunControls`, `Minimap`, `HelpDrawer` |
+| `/level/:levelId` | Core split playground/editor experience | Validate content, asset readiness, prereqs, save migration | `GameShell`, `SceneCanvas`, `ThirdPersonController`, `AvatarRig`, `MissionHUD`, `CodeEditor`, `RunControls`, `Minimap`, `HelpDrawer` |
 | `/level/:levelId/briefing` | Deep-linkable pausing mission briefing overlay | Same level guard | `MissionBriefingDialog` |
 | `/level/:levelId/complete` | Completion recap and next-choice overlay | Requires last completed run matching level | `CompletionDialog`, `ReflectionCard` |
 | `/collection` | Local cosmetics, lore, and earned rewards | Valid profile | `CollectionRoom`, `AvatarPreviewScene` |
@@ -155,6 +159,8 @@ The runner is an implementation risk, so it is built and reviewed before polish 
 Do not claim absolute arbitrary-code safety until an external security review validates the final browser deployment. The product promise remains “write any JavaScript logic supported by the learning sandbox.”
 
 ## 8. Implementation sequence
+
+These checkpoints explain technical dependency order. The [implementation plan](IMPLEMENTATION_PLAN.md) is authoritative for phase numbers, delivery gates, and release scheduling.
 
 ### Phase 0 — decisions and proof spikes
 
