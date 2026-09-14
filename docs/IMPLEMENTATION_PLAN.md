@@ -104,6 +104,8 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** avatar, minimap, trace, line highlight, and simulation agree on current command; quality tier never changes outcome.
 
+**Status:** Implementation complete. `packages/renderer` ships the scene adapter (`SceneCanvas`, `SceneView`), shared avatar rig (`AvatarRig` with boy/girl presets), follow camera rig (`FollowCameraRig` with coding/strategic/preview modes + blocker occlusion + reset), mission object registry (`MissionObjectLayer` for every kind in the discriminated union), semantic minimap (`Minimap` SVG with avatar facing + collected/flags projection), preview controls (`PreviewControls` with WASD/arrow + touch pad), quality tier (`qualityTier` low/medium/high with reduced-motion probe + responsive layout helpers), animation contract (`commandAnimationSystem` mapping `RunEventSchema` → `AvatarMovementState` + active command marker), and world transform helpers (`worldTransform`). 28 renderer tests cover animation contract, quality resolution, world transform, minimap projection, and preview key binding. Dev-only greybox lab at `/spikes/phase-7`. Greybox + animation report at `docs/evidence/phase-7/E-07-greybox-animation-report.md`. The renderer consumes only `@codequest/domain` and never reaches into `simulation` or `content` internals (boundary check passes, 79 files scanned). Avatar, minimap, trace, and simulation agree on the current command via `deriveAnimationState(events, state)` which walks the same `RunEventSchema` stream the coordinator publishes.
+
 ## Phase 8 — Learning/editor vertical slice
 
 **Goal:** connect child intent, code, and visible world result.

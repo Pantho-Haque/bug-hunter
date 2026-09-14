@@ -24,6 +24,14 @@ const PhaseSixRunnerLab = import.meta.env.DEV
     )
   : null;
 
+const PhaseSevenSceneLab = import.meta.env.DEV
+  ? lazy(() =>
+      import('./spikes/PhaseSevenSceneLab').then((module) => ({
+        default: module.PhaseSevenSceneLab,
+      })),
+    )
+  : null;
+
 export function App() {
   if (PhaseTwoLab && window.location.pathname === '/spikes/phase-2') {
     return (
@@ -45,6 +53,14 @@ export function App() {
     return (
       <Suspense fallback={<div className="scene-loading">Loading Phase 6 runner lab…</div>}>
         <PhaseSixRunnerLab />
+      </Suspense>
+    );
+  }
+
+  if (PhaseSevenSceneLab && window.location.pathname === '/spikes/phase-7') {
+    return (
+      <Suspense fallback={<div className="scene-loading">Loading Phase 7 greybox lab…</div>}>
+        <PhaseSevenSceneLab />
       </Suspense>
     );
   }

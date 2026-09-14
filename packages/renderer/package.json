@@ -17,7 +17,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b",
-    "test": "echo \"@codequest/renderer: no tests yet\"",
+    "test": "vitest run",
     "lint": "eslint src"
   },
   "dependencies": {
@@ -27,5 +27,12 @@
     "react": "19.2.8",
     "three": "^0.186.0",
     "@react-three/fiber": "^9.7.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^19.0.0",
+    "@types/three": "0.186.0",
+    "jsdom": "^25.0.1",
+    "vitest": "latest"
   }
 }
