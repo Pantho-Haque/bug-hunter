@@ -1,15 +1,15 @@
-import type { ZoneId } from '@codequest/domain';
+import type { LevelId, ZoneId } from '@codequest/domain';
 
 export interface ZoneSummary {
   readonly id: ZoneId;
   readonly title: string;
-  readonly unlockMissionId: string;
+  readonly unlockMissionId: LevelId;
 }
 
 export const knownZones: readonly ZoneSummary[] = [
-  { id: 'meadow-of-moves' as ZoneId, title: 'Meadow of Moves', unlockMissionId: 'm-01' },
-  { id: 'echo-forest' as ZoneId, title: 'Echo Forest', unlockMissionId: 'm-06' },
-  { id: 'loop-lagoon' as ZoneId, title: 'Loop Lagoon', unlockMissionId: 'm-12' },
-  { id: 'logic-cliffs' as ZoneId, title: 'Logic Cliffs', unlockMissionId: 'm-18' },
-  { id: 'maker-observatory' as ZoneId, title: 'Maker Observatory', unlockMissionId: 'm-24' },
+  { id: 'meadow-of-moves' as ZoneId, title: 'Meadow of Moves', unlockMissionId: 'm01' as LevelId },
+  { id: 'echo-forest' as ZoneId, title: 'Echo Forest', unlockMissionId: 'm07' as LevelId },
+  { id: 'loop-lagoon' as ZoneId, title: 'Loop Lagoon', unlockMissionId: 'm13' as LevelId },
+  { id: 'logic-cliffs' as ZoneId, title: 'Logic Cliffs', unlockMissionId: 'm19' as LevelId },
+  { id: 'maker-observatory' as ZoneId, title: 'Maker Observatory', unlockMissionId: 'm25' as LevelId },
 ];

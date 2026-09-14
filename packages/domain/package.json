@@ -17,7 +17,13 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b",
-    "test": "echo \"@codequest/domain: no tests yet\"",
+    "test": "vitest run",
     "lint": "eslint src"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.2"
   }
 }

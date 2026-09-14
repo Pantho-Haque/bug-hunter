@@ -17,7 +17,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b",
-    "test": "vitest run --dir src",
+    "test": "vitest run",
     "lint": "eslint src"
   },
   "dependencies": {

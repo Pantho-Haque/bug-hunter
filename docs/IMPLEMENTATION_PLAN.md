@@ -62,6 +62,8 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** M01 requires no level-specific UI code.
 
+**Status:** Implementation complete. Domain schemas in `packages/domain/src/{ids,ids-schemas,cells,commands,mission-objects,mission-package}.ts`. Persistence in `packages/persistence/src/{schemas,migrations}.ts`. Content registry + M01 fixture in `packages/content/src/{registry,missions/m01-first-steps,validation}.ts`. Handbook at `docs/content/HANDBOOK.md`. Traceability at `docs/evidence/phase-4/E-03-contract-test-report.md`. Test totals: domain 29, persistence 14, content 9, test-fixtures 16.
+
 ## Phase 5 — Deterministic simulation engine
 
 **Goal:** implement game rules without 3D graphics.
