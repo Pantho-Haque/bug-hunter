@@ -8,8 +8,13 @@
     "declaration": true,
     "declarationMap": true,
     "noEmit": false,
-    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"]
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["vitest/globals"]
   },
   "include": ["src"],
-  "references": [{ "path": "../domain" }]
+  "references": [
+    { "path": "../content" },
+    { "path": "../domain" },
+    { "path": "../simulation" }
+  ]
 }

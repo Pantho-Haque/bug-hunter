@@ -90,6 +90,8 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** hostile fixtures cannot freeze UI, access browser capability, mutate simulation directly, or leak between runs.
 
+**Status:** Implementation complete. `packages/code-runner` ships `protocol.ts` (Zod schemas + parseHost/parseWorker + capability manifest), `capabilities.ts` (mission→allow-list), `coordinator.ts` (worker→simulation reducer with lifecycle), `fault-mapping.ts` (runFault + child-copy presentation), `worker.ts` (sandboxed QuickJS host with memory + stack + interrupt budgets, lifecycle resource cleanup). 29 tests cover protocol, fault-mapping, and 10 hostile-fixture scenarios including double Run, Pause, Step, and route-exit cancel. Dev-only runner lab at `/spikes/phase-6`. Threat model at `docs/evidence/phase-6/E-05-runner-threat-model.md`; hostile-code report at `docs/evidence/phase-6/E-06-hostile-code-report.md`.
+
 ## Phase 7 — 3D greybox and camera/animation contract
 
 **Goal:** make code execution legible as third-person 3D action.

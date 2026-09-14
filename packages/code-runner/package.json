@@ -17,10 +17,18 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b",
-    "test": "echo \"@codequest/code-runner: no tests yet\"",
+    "test": "vitest run",
     "lint": "eslint src"
   },
   "dependencies": {
-    "@codequest/domain": "workspace:*"
+    "@codequest/content": "workspace:*",
+    "@codequest/domain": "workspace:*",
+    "@codequest/simulation": "workspace:*",
+    "@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
+    "quickjs-emscripten-core": "^0.32.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.2"
   }
 }

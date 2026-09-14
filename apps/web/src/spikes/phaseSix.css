@@ -1,0 +1,131 @@
+.phase-six-lab {
+  padding: 24px;
+  background: #11151c;
+  color: #e8edf2;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, sans-serif;
+  display: grid;
+  gap: 16px;
+}
+
+.phase-six-header h1 {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.phase-six-header p {
+  margin: 0;
+  color: #9aa6b8;
+}
+
+.phase-six-capabilities code {
+  background: #1a2030;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 4px;
+  font-size: 12px;
+}
+
+.phase-six-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.phase-six-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.phase-six-actions button {
+  background: #2b6cb0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.phase-six-actions button:hover {
+  background: #3182ce;
+}
+
+.phase-six-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #1a2030;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+.phase-six-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.phase-six-pill-running,
+.phase-six-pill-stepping {
+  background: #2b6cb0;
+}
+
+.phase-six-pill-paused {
+  background: #b7791f;
+}
+
+.phase-six-pill-complete {
+  background: #2f855a;
+}
+
+.phase-six-pill-fault,
+.phase-six-pill-cancelled {
+  background: #c53030;
+}
+
+.phase-six-pill-booting,
+.phase-six-pill-idle {
+  background: #4a5568;
+}
+
+.phase-six-label {
+  color: #c8d4e3;
+}
+
+.phase-six-count {
+  margin-left: auto;
+  color: #9aa6b8;
+  font-size: 12px;
+}
+
+.phase-six-events ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.phase-six-row {
+  display: grid;
+  grid-template-columns: 160px 120px 80px 1fr;
+  gap: 12px;
+  background: #1a2030;
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  font-family: 'JetBrains Mono', 'Menlo', monospace;
+  font-size: 13px;
+}
+
+.phase-six-row-commandApplied {
+  border-left: 4px solid #74e5a8;
+}
+
+.phase-six-row-commandRejected {
+  border-left: 4px solid #ff7a7a;
+}
+
+.phase-six-row-runFault {
+  border-left: 4px solid #c53030;
+}

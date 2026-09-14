@@ -108,9 +108,28 @@ importers:
 
   packages/code-runner:
     dependencies:
+      '@codequest/content':
+        specifier: workspace:*
+        version: link:../content
       '@codequest/domain':
         specifier: workspace:*
         version: link:../domain
+      '@codequest/simulation':
+        specifier: workspace:*
+        version: link:../simulation
+      '@jitl/quickjs-wasmfile-release-sync':
+        specifier: ^0.32.0
+        version: 0.32.0
+      quickjs-emscripten-core:
+        specifier: ^0.32.0
+        version: 0.32.0
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(lightningcss@1.33.0)
 
   packages/content:
     dependencies:
