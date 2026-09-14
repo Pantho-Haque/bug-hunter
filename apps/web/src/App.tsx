@@ -8,11 +8,27 @@ const PhaseTwoLab = import.meta.env.DEV
     )
   : null;
 
+const PhaseFiveTraceViewer = import.meta.env.DEV
+  ? lazy(() =>
+      import('./spikes/PhaseFiveTraceViewer').then((module) => ({
+        default: module.PhaseFiveTraceViewer,
+      })),
+    )
+  : null;
+
 export function App() {
   if (PhaseTwoLab && window.location.pathname === '/spikes/phase-2') {
     return (
       <Suspense fallback={<div className="scene-loading">Loading Phase 2 evidence lab…</div>}>
         <PhaseTwoLab />
+      </Suspense>
+    );
+  }
+
+  if (PhaseFiveTraceViewer && window.location.pathname === '/spikes/phase-5') {
+    return (
+      <Suspense fallback={<div className="scene-loading">Loading Phase 5 trace viewer…</div>}>
+        <PhaseFiveTraceViewer />
       </Suspense>
     );
   }

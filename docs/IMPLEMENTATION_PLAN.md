@@ -76,6 +76,8 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** headless M01 has byte-for-byte equivalent trace and end state on replay.
 
+**Status:** Implementation complete. Simulation package (`packages/simulation`) ships `createSimulation`, `reduceCommand`, `replayCommands`, `createSnapshotStore`, `validateMissionObjectives`. M01 reference traces replay deterministically; 19 tests cover every command branch. Dev-only trace viewer at `/spikes/phase-5`. Report at `docs/evidence/phase-5/E-04-simulation-trace-report.md`.
+
 ## Phase 6 — Secure player-code runner
 
 **Goal:** allow JavaScript learning logic without exposing browser/app/local data.

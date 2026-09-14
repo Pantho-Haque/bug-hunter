@@ -173,9 +173,16 @@ importers:
 
   packages/simulation:
     dependencies:
+      '@codequest/content':
+        specifier: workspace:*
+        version: link:../content
       '@codequest/domain':
         specifier: workspace:*
         version: link:../domain
+    devDependencies:
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(lightningcss@1.33.0)
 
   packages/test-fixtures:
     dependencies:

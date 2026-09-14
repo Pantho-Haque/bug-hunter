@@ -7,8 +7,12 @@
     "rootDir": "./src",
     "declaration": true,
     "declarationMap": true,
-    "noEmit": false
+    "noEmit": false,
+    "types": ["vitest/globals"]
   },
   "include": ["src"],
-  "references": [{ "path": "../domain" }]
+  "references": [
+    { "path": "../content" },
+    { "path": "../domain" }
+  ]
 }

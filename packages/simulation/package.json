@@ -17,10 +17,14 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b",
-    "test": "echo \"@codequest/simulation: no tests yet\"",
+    "test": "vitest run",
     "lint": "eslint src"
   },
   "dependencies": {
+    "@codequest/content": "workspace:*",
     "@codequest/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.2"
   }
 }
