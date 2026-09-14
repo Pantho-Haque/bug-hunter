@@ -9,7 +9,7 @@
     "build": "pnpm -r build",
     "preview": "pnpm --filter @codequest/web preview",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
+    "test": "pnpm -r build && pnpm -r test",
     "lint": "pnpm -r lint && node scripts/check-package-boundaries.mjs"
   },
   "devDependencies": {

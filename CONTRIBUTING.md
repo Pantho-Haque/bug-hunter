@@ -75,9 +75,10 @@ From the repository root:
 4. Accessibility has an equivalent surface. Canvas visuals have semantic HTML
    or SVG equivalents.
 5. Package dependencies point inward. `domain` has no browser imports.
-6. Production code never executes `moveForward()` directly. Direct execution
-   belongs only in the Phase 2 spike lab, which is gated by `import.meta.env.DEV`
-   and the `/spikes/phase-2` route.
+6. Production code never executes learner source or calls `moveForward()`
+   directly. Learner-code execution belongs only in a development-only spike
+   lab gated by `import.meta.env.DEV` until the Phase 8 runner integration is
+   complete.
 
 ## Child safety
 

@@ -10,7 +10,6 @@ import {
   type AvatarMovementState,
   type AvatarPresentation,
 } from '../avatar/avatarPresentation';
-import type { CameraMode } from '../camera/FollowCameraRig';
 import { Minimap } from '../minimap/Minimap';
 import {
   type PreviewNudge,
@@ -31,36 +30,13 @@ export interface SceneViewProps {
   readonly onPreviewNudge?: (nudge: PreviewNudge) => void;
   readonly runControls?: React.ReactNode;
   readonly minimapSide?: 'right' | 'bottom';
-  readonly cameraMode?: CameraMode;
-  readonly onCameraModeChange?: (mode: CameraMode) => void;
   readonly cameraResetToken?: number;
   readonly onCameraReset?: () => void;
 }
 
-const cameraSequence: readonly CameraMode[] = ['coding', 'preview', 'strategic'];
-
-const nextCameraMode = (mode: CameraMode): CameraMode => {
-  const index = cameraSequence.indexOf(mode);
-  return cameraSequence[(index + 1) % cameraSequence.length];
-};
-
 export function SceneView(props: SceneViewProps) {
-  const [internalMode, setInternalMode] = useState<CameraMode>('coding');
   const [internalResetToken, setInternalResetToken] = useState(0);
-  const cameraMode = props.cameraMode ?? internalMode;
   const resetToken = props.cameraResetToken ?? internalResetToken;
-
-  const setCameraMode = useCallback(
-    (next: CameraMode) => {
-      props.onCameraModeChange?.(next);
-      if (props.cameraMode === undefined) setInternalMode(next);
-    },
-    [props],
-  );
-
-  const advanceCamera = useCallback(() => {
-    setCameraMode(nextCameraMode(cameraMode));
-  }, [cameraMode, setCameraMode]);
 
   const resetCamera = useCallback(() => {
     if (props.onCameraReset) {
@@ -89,28 +65,15 @@ export function SceneView(props: SceneViewProps) {
           presentation={presentation}
           quality={quality}
           reducedEffects={reducedEffects}
-          cameraMode={cameraMode}
           lifecycle="running"
           cameraResetToken={resetToken}
           className="scene-view-canvas"
           ariaLabel={`${mission.identity.title} third-person view`}
         />
         <div className="scene-view-overlay">
-          <div className="scene-view-mode-toggle" role="group" aria-label="Camera modes">
-            <button type="button" aria-pressed={cameraMode === 'coding'} onClick={() => setCameraMode('coding')}>
-              Coding View
-            </button>
-            <button type="button" aria-pressed={cameraMode === 'preview'} onClick={() => setCameraMode('preview')}>
-              Preview
-            </button>
-            <button type="button" aria-pressed={cameraMode === 'strategic'} onClick={() => setCameraMode('strategic')}>
-              Strategic View
-            </button>
-            <button type="button" onClick={advanceCamera} aria-label="Advance camera mode">
-              ›
-            </button>
+          <div className="scene-view-mode-toggle" role="group" aria-label="Camera controls">
             <button type="button" onClick={resetCamera} aria-label="Reset camera">
-              ↺
+              ↺ Reset view
             </button>
           </div>
           {previewEnabled && onPreviewNudge ? (

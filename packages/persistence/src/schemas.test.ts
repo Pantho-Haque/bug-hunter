@@ -30,6 +30,12 @@ describe('settings', () => {
     const migrated = migrateSettings(undefined);
     expect(migrated.schemaVersion).toBe(1);
   });
+
+  it('migrates retired avatar presets to the girl presentation', () => {
+    const migrated = migrateSettings({ ...defaultSettingsRecord(), avatarPreset: 'panda' });
+    expect(migrated.avatarPreset).toBe('girl');
+    expect(migrated.defaultView).toBe('strategic');
+  });
 });
 
 describe('progress', () => {

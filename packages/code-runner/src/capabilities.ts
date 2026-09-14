@@ -15,8 +15,6 @@ const COMMAND_KIND_BY_CAPABILITY: ReadonlyMap<string, readonly RunnerCommandKind
   ['cap-everything', ['moveForward', 'turnLeft', 'turnRight', 'collect', 'interact']],
 ]);
 
-const DEFAULT_ALLOWED: readonly RunnerCommandKind[] = ['moveForward', 'turnLeft', 'turnRight', 'collect', 'interact'];
-
 export const resolveCapabilities = (
   mission: MissionPackageSchema,
 ): RunnerCapabilitiesSchema => {
@@ -29,7 +27,9 @@ export const resolveCapabilities = (
     }
   }
   if (allowed.size === 0) {
-    for (const kind of DEFAULT_ALLOWED) allowed.add(kind);
+    throw new Error(
+      `Mission ${mission.identity.levelId} does not declare a recognized learning API capability for ${mission.identity.apiVersion}.`,
+    );
   }
   return runnerCapabilitiesSchema.parse({
     apiVersion: mission.identity.apiVersion,

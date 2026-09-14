@@ -2,15 +2,15 @@
 meta:
   contentType: Decision
   decisionId: DR-03
-  status: Proposed
+  status: Approved for implementation
 ---
 
 # Decide how learning API calls advance time
 
 ## Status
 
-- State: Proposed
-- Owner: Curriculum or technical lead, name pending
+- State: Approved for implementation
+- Owner: Product owner
 - Required reviewers: Security, gameplay, and UX owners
 - Blocks: Starter code, examples, snippets, runner protocol, and the first zone
 
@@ -18,7 +18,7 @@ meta:
 
 Should early missions use queued synchronous-looking calls or require explicit `await` for each action?
 
-## Proposed decision
+## Approved decision
 
 Use queued calls in v1 learning content:
 
@@ -30,6 +30,8 @@ collect();
 ```
 
 The restricted runtime records approved commands in source order. The coordinator validates the immutable queue, then the simulation executes one atomic command at a time. A predicate reads deterministic simulated state defined by the runner contract, never animation state.
+
+Early missions introduce the game API with direct calls. Higher missions introduce advanced JavaScript through the existing curriculum: functions, loops, conditionals, arrays, objects, debugging, and composition. Advanced JavaScript changes how players express a plan; it does not grant browser access or bypass the queued command contract. `await` remains out of scope until a later API-version decision explicitly adds it.
 
 ## Why
 
@@ -58,8 +60,7 @@ If state-dependent code cannot be explained consistently with the queued model, 
 
 | Role | Name | Decision | Date | Evidence link |
 |---|---|---|---|---|
-| Product |  |  |  |  |
+| Product | Project owner | Approved for implementation | 2026-09-15 | Product direction in this thread |
 | Technical |  |  |  |  |
 | Curriculum |  |  |  |  |
 | Security |  |  |  |  |
-

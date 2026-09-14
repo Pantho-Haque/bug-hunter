@@ -6,7 +6,7 @@ This document defines the curriculum sequence and build contract for all 30 requ
 
 This is the production mission plan for the requirements in `GAME_REQUIREMENTS_TEARDOWN.md`. Missions are authored, deterministic 3D puzzle arenas. The player writes JavaScript to command a third-person 3D avatar; manual controls are Preview-only and cannot complete a challenge. Each mission has one core concept, a visible objective, a non-spoiling analogous example, progressive hints, and at least two valid solutions unless marked otherwise.
 
-**Run syntax assumption (Open decision DR-03):** examples use queued calls such as `moveForward();`. The runner queues them deterministically. If `await` is later selected, the curriculum and all examples must be migrated together—never mixed.
+**Run syntax contract (DR-03):** examples use queued calls such as `moveForward();`. The runner queues them deterministically. Higher zones introduce advanced JavaScript, including functions, parameters, loops, conditions, variables, arrays, objects, debugging, and composition. Advanced syntax never exposes browser capabilities or changes the deterministic command queue.
 
 | Zone | Levels | Primary concepts | Required result |
 |---|---:|---|---|
@@ -18,7 +18,7 @@ This is the production mission plan for the requirements in `GAME_REQUIREMENTS_T
 
 ## Global mission format
 
-Every level opens with a pausing card: story sentence, goal, concept, success checklist, Read Aloud, Preview, analogous example, and Start. The play layout is left 3D scene/minimap/HUD and right code editor/console. Each scene stages its puzzle on a street, trail, courtyard, bridge, dock, or room with visible depth, landmarks, and a walkable route. “Coding View” shows grid cells, facing, interaction range, current line, and route preview. Required collectible count is always explicit; optional collectibles never block progression.
+Every level opens with a pausing card: story sentence, goal, concept, success checklist, Read Aloud, Preview, analogous example, and Start. The play layout is left 3D scene/minimap/HUD and right code editor/console. Each scene stages its puzzle inside a continuous-looking district with streets, trails, courtyards, bridges, docks, or rooms with visible depth, landmarks, and an explorable route. Strategic View opens by default. Preview View supports manual exploration. The optional coding overlay shows grid cells, facing, interaction range, current line, and route preview. Required collectible count is always explicit; optional collectibles never block progression.
 
 ## Learning and validation contract
 
@@ -118,7 +118,7 @@ The following missions require both their world-state invariants and the named s
 | M02 — Turn Toward Light | L-shaped garden path; beacon is 2 north, 1 east. | `turnRight()` plus `moveForward()`. | Reach beacon without wall hit. Pivot visibly happens before walk. Hint emphasizes facing arrow, not answer. Reward: compass badge. |
 | M03 — Treasure at Your Feet | Straight path ending at a glowing seed pod. | `collect()`; sequence. | Reach pod and collect it. Attempting collect too early triggers puzzled animation and line clue. Reward: Seed Satchel cosmetic. |
 | M04 — The Gate Lever | Yard with a lever adjacent to a closed gate and beacon beyond. | `interact()`; ordered actions. | Use lever, gate state changes, then stand on beacon. Example uses a lantern rather than gate. Reward: restored path on map. |
-| M05 — Short Safe Route | Three paths; one short route contains a decorative blocker and one works. | `turnLeft()` plus previous commands; Coding View. | Collect two required sparks and reach exit. More than one valid route. Route preview is optional. Reward: trail-color choice. |
+| M05 — Short Safe Route | Three paths; one short route contains a decorative blocker and one works. | `turnLeft()` plus previous commands; coding overlay. | Collect two required sparks and reach exit. More than one valid route. Route preview is optional. Reward: trail-color choice. |
 | M06 — Meadow Checkpoint | Mini rescue arena: wake two beacon sprites in a prescribed order. | Sequence; comments as plan. | Interact with both, collect one required spark, exit. Completion recap asks “Which command changed direction?” Reward: Meadow unlocked + optional free explore. |
 
 ## Echo Forest — use functions to name and reuse a route
@@ -247,4 +247,4 @@ Read-aloud text must not pronounce punctuation-heavy code as prose. Use authored
 - Core route is M01–M30 in order. M05, M11, M17, M18, M24, and M29 include optional challenge objectives but never gate M30.
 - Each new construct is introduced in a controlled mission, rehearsed in the next 1–2 missions, then assessed in a changed-context checkpoint.
 - A player may replay any completed mission, change avatar/settings, use hints, or take breaks without penalty.
-- Before content lock, test at least two valid solutions per level, both presentation presets, keyboard/touch where supported, Coding View, reduced motion, text scaling, and fresh/corrupt local-save recovery.
+- Before content lock, test at least two valid solutions per level, both presentation presets, keyboard/touch where supported, the coding overlay, reduced motion, text scaling, and fresh/corrupt local-save recovery.

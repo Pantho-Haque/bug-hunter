@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+
 import type {
   MissionObjectSchema,
   MissionPackageSchema,
@@ -13,6 +15,7 @@ export interface MinimapProps {
 }
 
 const VIEWPORT_PADDING_CELLS = 2;
+const STEP_DURATION_MS = 360;
 
 const cellToPixel = (
   cellX: number,
@@ -25,6 +28,8 @@ const cellToPixel = (
   originX + (cellX - bounds.minX) * pixelScale,
   originY + (cellZ - bounds.minZ) * pixelScale,
 ];
+
+const easeInOut = (t: number): number => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
 export function Minimap({ mission, state, reducedEffects }: MinimapProps) {
   const bounds = cellBounds(mission);
@@ -86,9 +91,65 @@ export function Minimap({ mission, state, reducedEffects }: MinimapProps) {
 
   const avatarCellX = state.avatar.cellX * cellSize;
   const avatarCellZ = state.avatar.cellZ * cellSize;
-  const [avatarX, avatarY] = cellToPixel(avatarCellX, avatarCellZ, adjustedBounds, pixelScale, 0, 0);
+  const [targetX, targetY] = cellToPixel(avatarCellX, avatarCellZ, adjustedBounds, pixelScale, 0, 0);
   const facing = state.avatar.facing;
-  const facingOffset: readonly [number, number] = facing === 'north' ? [0, -4] : facing === 'east' ? [4, 0] : facing === 'south' ? [0, 4] : [-4, 0];
+
+  const avatarGroupRef = useRef<SVGGElement | null>(null);
+  const tweenRef = useRef<{
+    fromX: number;
+    fromY: number;
+    fromYaw: number;
+    toX: number;
+    toY: number;
+    toYaw: number;
+    startedAt: number;
+    duration: number;
+  } | null>(null);
+  const visualRef = useRef<{ x: number; y: number; yaw: number }>({ x: targetX, y: targetY, yaw: facingToYaw(facing) });
+  const lastKeyRef = useRef<string>(`${state.avatar.cellX}:${state.avatar.cellZ}:${facing}`);
+
+  useEffect(() => {
+    const key = `${state.avatar.cellX}:${state.avatar.cellZ}:${facing}`;
+    if (key === lastKeyRef.current) return;
+    tweenRef.current = {
+      fromX: visualRef.current.x,
+      fromY: visualRef.current.y,
+      fromYaw: visualRef.current.yaw,
+      toX: targetX,
+      toY: targetY,
+      toYaw: facingToYaw(facing),
+      startedAt: performance.now(),
+      duration: reducedEffects ? 0 : STEP_DURATION_MS,
+    };
+    lastKeyRef.current = key;
+  }, [targetX, targetY, facing, state.avatar.cellX, state.avatar.cellZ, reducedEffects]);
+
+  useEffect(() => {
+    let frame = 0;
+    const tick = () => {
+      const tween = tweenRef.current;
+      if (tween) {
+        const elapsed = performance.now() - tween.startedAt;
+        const t = tween.duration === 0 ? 1 : Math.min(1, elapsed / tween.duration);
+        const eased = easeInOut(t);
+        visualRef.current = {
+          x: tween.fromX + (tween.toX - tween.fromX) * eased,
+          y: tween.fromY + (tween.toY - tween.fromY) * eased,
+          yaw: tween.fromYaw + shortestYaw(tween.fromYaw, tween.toYaw) * eased,
+        };
+        if (t >= 1) tweenRef.current = null;
+      } else {
+        visualRef.current = { x: targetX, y: targetY, yaw: facingToYaw(facing) };
+      }
+      const group = avatarGroupRef.current;
+      if (group) {
+        group.setAttribute('transform', `translate(${visualRef.current.x} ${visualRef.current.y}) rotate(${yawToDegrees(visualRef.current.yaw)})`);
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [targetX, targetY, facing]);
 
   return (
     <svg
@@ -100,13 +161,43 @@ export function Minimap({ mission, state, reducedEffects }: MinimapProps) {
       className={`minimap${reducedEffects ? ' minimap-reduced' : ''}`}
     >
       <rect x={0} y={0} width={pixelWidth} height={pixelHeight} fill="#0d1b2a" rx={6} />
+      <g aria-hidden="true" className="minimap-grid">
+        {Array.from({ length: Math.ceil(widthCells) + 1 }, (_, index) => {
+          const x = index * pixelScale;
+          return (
+            <line
+              key={`grid-x-${index}`}
+              x1={x}
+              y1={0}
+              x2={x}
+              y2={pixelHeight}
+              stroke="#1a2c40"
+              strokeWidth={1}
+            />
+          );
+        })}
+        {Array.from({ length: Math.ceil(heightCells) + 1 }, (_, index) => {
+          const y = index * pixelScale;
+          return (
+            <line
+              key={`grid-z-${index}`}
+              x1={0}
+              y1={y}
+              x2={pixelWidth}
+              y2={y}
+              stroke="#1a2c40"
+              strokeWidth={1}
+            />
+          );
+        })}
+      </g>
       <text x={pixelWidth / 2} y={12} textAnchor="middle" fontSize={9} fill="#a4c8e1">
         {mission.identity.title}
       </text>
       {mission.objects.map(renderCell)}
-      <g>
-        <line x1={avatarX} y1={avatarY} x2={avatarX + facingOffset[0]} y2={avatarY + facingOffset[1]} stroke="#ffd65c" strokeWidth={2} />
-        <circle cx={avatarX} cy={avatarY} r={5} fill="#ffd65c" stroke="#1a1a1a" strokeWidth={1.5} />
+      <g ref={avatarGroupRef} className="minimap-avatar">
+        <line x1={0} y1={0} x2={4} y2={0} stroke="#ffd65c" strokeWidth={2} />
+        <circle cx={0} cy={0} r={5} fill="#ffd65c" stroke="#1a1a1a" strokeWidth={1.5} />
       </g>
       <text x={pixelWidth - 6} y={pixelHeight - 6} textAnchor="end" fontSize={8} fill="#7d97ad">
         step {state.stepCount}
@@ -114,3 +205,25 @@ export function Minimap({ mission, state, reducedEffects }: MinimapProps) {
     </svg>
   );
 }
+
+const facingToYaw = (facing: SimulationStateSchema['avatar']['facing']): number => {
+  switch (facing) {
+    case 'north':
+      return -Math.PI / 2;
+    case 'east':
+      return 0;
+    case 'south':
+      return Math.PI / 2;
+    case 'west':
+      return Math.PI;
+  }
+};
+
+const yawToDegrees = (yaw: number): number => (yaw * 180) / Math.PI;
+
+const shortestYaw = (from: number, to: number): number => {
+  let diff = (to - from) % (Math.PI * 2);
+  if (diff > Math.PI) diff -= Math.PI * 2;
+  if (diff < -Math.PI) diff += Math.PI * 2;
+  return diff;
+};

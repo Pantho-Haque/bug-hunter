@@ -54,7 +54,6 @@ codequest/
           ZoneRoute.tsx
           MissionRoute.tsx
           CollectionRoute.tsx
-          SettingsRoute.tsx
           HelpRoute.tsx
           RecoveryRoute.tsx
         features/
@@ -248,7 +247,6 @@ App
             ├── ZoneRoute
             ├── MissionRoute
             ├── CollectionRoute
-            ├── SettingsRoute
             ├── HelpRoute
             └── RecoveryRoute
 ```
@@ -295,7 +293,7 @@ OnboardingRoute
         └── OrientationChecklist
 ```
 
-`AvatarPreviewScene` reuses `AvatarEntity` and `AvatarRig` from the renderer. It does not create a second avatar implementation. `OrientationScene` uses the production camera and preview controller with mission completion disabled.
+`AvatarPreviewScene` reuses `AvatarEntity` and `AvatarRig` from the renderer. It does not create a second avatar implementation. `OrientationScene` uses the production camera and preview controller with mission completion disabled. `SettingsDialog` opens from a shared `SettingsButton`; it uses one focus-trapped dialog and returns focus to that button on close. It does not create a second settings page or duplicate setting controls.
 
 ### Compose the map and zone flow
 
@@ -309,8 +307,19 @@ MapRoute
     │   ├── CurrentLocationMarker
     │   └── MapLegend
     ├── RecommendedMissionCard
+    ├── SettingsButton
     └── ZoneSummaryPanel
         └── MissionSummaryList
+
+SettingsButton
+└── SettingsDialog
+    ├── AvatarSettingsPanel
+    ├── CameraAndDisplayPanel
+    ├── ControlsPanel
+    ├── AccessibilityPanel
+    ├── AudioPanel
+    ├── LearningSettingsPanel
+    └── LocalDataPanel
 
 ZoneRoute
 └── ZoneOverview
@@ -343,6 +352,7 @@ MissionRoute
             │   └── LearningPane
             │       └── CodeWorkspace
             ├── WorkspaceModeTabs
+            ├── SettingsButton
             ├── HelpDrawer
             ├── PauseDialog
             └── CompletionDialog
@@ -437,7 +447,8 @@ SceneCanvas
 | `AvatarEntity` | Compose shared rig, appearance, animation, and attachments | Avatar projection and settings |
 | `AvatarAnimationController` | Map command events to named animation states | Run event stream |
 | `ThirdPersonCameraRig` | Follow, collision, comfort distance, authored anchors | Avatar transform and camera settings |
-| `CodingViewLayer` | Render cells, facing, ranges, route preview, and target cues | Simulation projection |
+| `StrategicViewLayer` | Render the default route, landmarks, objective cues, and avatar context | Simulation projection and camera settings |
+| `CodingOverlayLayer` | Render optional cells, facing, ranges, route preview, and target cues | Simulation projection and settings |
 | `WorldFeedbackLayer` | Render one prioritized command or objective effect | Feedback events |
 | `AudioEmitterLayer` | Position approved world sounds | Audio events and settings |
 
@@ -478,6 +489,8 @@ Presentation differences never create a new controller or simulation branch.
 ### Separate preview control from code control
 
 `PreviewController` converts keyboard, touch, and camera input into temporary exploration transforms. `CommandAnimationSystem` consumes accepted simulation events during Code mode. Both use the same avatar and camera components, but they never run together.
+
+`StrategicViewLayer` is the default camera presentation. `PreviewController` activates Preview View. `CodingOverlayLayer` is an optional information overlay, not a third camera mode.
 
 Preview state must not enter:
 
@@ -770,6 +783,7 @@ These concerns do not belong to one late-stage component.
 - Keep per-frame transforms outside React state
 - Reuse geometries, materials, textures, and animation clips
 - Apply level-of-detail models and compressed assets through the asset manifest
+- Stream decorative environment chunks around the player and keep mission-state cells separate from visual-only exploration terrain
 - Cap the active scene to one player, zero to three lightweight non-player characters, one shadow-casting directional light, and two local shadow lights
 - Preserve 30 frames per second on the minimum tier and responsive editor input under 100 ms
 - Change only presentation when reducing quality

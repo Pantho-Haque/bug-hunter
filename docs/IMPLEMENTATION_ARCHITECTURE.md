@@ -111,8 +111,8 @@ Use React Router in browser history mode. Routes are deep-linkable only when the
 | `/level/:levelId/briefing` | Deep-linkable pausing mission briefing overlay | Same level guard | `MissionBriefingDialog` |
 | `/level/:levelId/complete` | Completion recap and next-choice overlay | Requires last completed run matching level | `CompletionDialog`, `ReflectionCard` |
 | `/collection` | Local cosmetics, lore, and earned rewards | Valid profile | `CollectionRoom`, `AvatarPreviewScene` |
-| `/settings` | All local settings categories | Valid profile; no network required | `SettingsHome`, category panels |
-| `/settings/data` | Export/import/clear storage | Valid profile; destructive actions confirmed | `BackupPanel`, `ImportPreview`, `ClearDataDialog` |
+| Settings modal | All local settings categories | Opens from the map and mission shell; no network required | `SettingsDialog`, category panels |
+| Settings data panel | Export/import/clear storage | Inside Settings modal; destructive actions confirmed | `BackupPanel`, `ImportPreview`, `ClearDataDialog` |
 | `/help` | API reference, controls, accessibility, parent/teacher local note | None | `ApiReference`, `ControlsGuide` |
 | `/recovery` | Safe fallback for migration/storage/content errors | Always reachable | `RecoveryScreen`, `ExportRawBackup` |
 | `*` | Unknown route fallback | None | `NotFoundRedirect` → `/map` |
@@ -182,7 +182,7 @@ These checkpoints explain technical dependency order. The [implementation plan](
 
 ### Phase 2 — playable vertical slice
 
-1. Add R3F canvas, third-person camera, avatar controller/animation adapter, level-object renderer, Coding View, and minimap.
+1. Add R3F canvas, Strategic View, Preview View, avatar controller/animation adapter, level-object renderer, optional coding overlay, and minimap.
 2. Bind renderer only to `RunEvent` stream; add pause/step/speed/restart.
 3. Implement CodeMirror with highlights, autosave, API completion, lint diagnostics, line focus, and child-friendly error panel.
 4. Build QuickJS runner bridge and all abuse/cancellation tests.

@@ -1,4 +1,5 @@
 export { AvatarRig } from './avatar/AvatarRig';
+export { AvatarEntity } from './avatar/AvatarEntity';
 export {
   type AvatarMovementState,
   type AvatarPresentation,
@@ -8,7 +9,6 @@ export {
 } from './avatar/avatarPresentation';
 
 export { FollowCameraRig } from './camera/FollowCameraRig';
-export type { CameraMode } from './camera/FollowCameraRig';
 
 export { EnvironmentLayer } from './environment/EnvironmentLayer';
 

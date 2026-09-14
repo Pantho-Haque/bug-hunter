@@ -2,15 +2,15 @@
 meta:
   contentType: Decision
   decisionId: DR-05
-  status: Evidence gathering
+  status: Approved for implementation
 ---
 
 # Decide quality tiers and asset budgets
 
 ## Status
 
-- State: Evidence gathering
-- Owner: Technical or 3D lead, name pending
+- State: Approved for implementation
+- Owner: Product owner
 - Required reviewers: Gameplay and UX or accessibility owners
 - Blocks: Final asset acceptance and release device claims
 
@@ -18,7 +18,7 @@ meta:
 
 Which presentation tiers keep the game readable and responsive without changing simulation or learning results?
 
-## Proposed tiers
+## Approved tiers
 
 | Concern | Low | Balanced | High |
 |---|---|---|---|
@@ -50,8 +50,7 @@ If Low fails, reduce decoration, materials, shadow cost, texture memory, animati
 
 | Role | Name | Decision | Date | Evidence link |
 |---|---|---|---|---|
-| Technical |  |  |  |  |
+| Product | Project owner | Approved for implementation | 2026-09-15 | Product direction in this thread |
 | 3D engineering |  |  |  |  |
 | Gameplay |  |  |  |  |
 | UX and accessibility |  |  |  |  |
-

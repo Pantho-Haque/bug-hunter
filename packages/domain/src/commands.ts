@@ -39,7 +39,7 @@ export type CommandRejectedEventSchema = z.infer<typeof commandRejectedEventSche
 
 export const runFaultSchema = z.object({
   type: z.literal('runFault'),
-  code: z.enum(['timeout', 'memory', 'syntax', 'blockedApi', 'cancelled']),
+  code: z.enum(['timeout', 'memory', 'syntax', 'blockedApi', 'commandLimit', 'cancelled']),
   sourceLine: z.number().int().nonnegative().optional(),
   reasonKey: z.string().min(1),
 });

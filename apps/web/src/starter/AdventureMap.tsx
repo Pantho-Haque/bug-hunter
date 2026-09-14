@@ -175,6 +175,17 @@ export function AdventureMap({ onPlay }: AdventureMapProps) {
 
           {zones.map((zone) => (
             <button
+              aria-label={`Explore ${zone.name}`}
+              aria-pressed={selectedZone.id === zone.id}
+              className={`map-hit-region map-hit-region--${zone.id}`}
+              key={`region-${zone.id}`}
+              onClick={() => setSelectedZoneId(zone.id)}
+              type="button"
+            />
+          ))}
+
+          {zones.map((zone) => (
+            <button
               aria-label={`${zone.name}: ${zone.concept}`}
               aria-pressed={selectedZone.id === zone.id}
               className={`zone-marker zone-marker--${zone.id}`}
@@ -203,9 +214,19 @@ export function AdventureMap({ onPlay }: AdventureMapProps) {
           <ol className="mission-list">
             {selectedZone.missions.map((mission, index) => (
               <li className={selectedZone.id === 'meadow' && index === 0 ? 'mission-list__ready' : ''} key={mission.title}>
-                <span>{String((selectedZone.number - 1) * 6 + index + 1).padStart(2, '0')}</span>
-                <div><strong>{mission.title}</strong><span className="mission-task">{mission.task}</span></div>
-                <small>{selectedZone.id === 'meadow' && index === 0 ? 'Play' : 'Planned'}</small>
+                {selectedZone.id === 'meadow' && index === 0 ? (
+                  <button aria-label={`Play Mission 01: ${mission.title}`} className="mission-list__play" onClick={onPlay} type="button">
+                    <span>{String((selectedZone.number - 1) * 6 + index + 1).padStart(2, '0')}</span>
+                    <div><strong>{mission.title}</strong><span className="mission-task">{mission.task}</span></div>
+                    <small>Play <span aria-hidden="true">→</span></small>
+                  </button>
+                ) : (
+                  <div className="mission-list__planned">
+                    <span>{String((selectedZone.number - 1) * 6 + index + 1).padStart(2, '0')}</span>
+                    <div><strong>{mission.title}</strong><span className="mission-task">{mission.task}</span></div>
+                    <small>Planned</small>
+                  </div>
+                )}
               </li>
             ))}
           </ol>

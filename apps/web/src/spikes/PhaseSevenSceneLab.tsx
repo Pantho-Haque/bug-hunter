@@ -21,7 +21,6 @@ import type {
 import {
   type AvatarMovementState,
   type AvatarPresentation,
-  type CameraMode,
   type PreviewNudge,
   PreviewControls,
   SceneView,
@@ -92,7 +91,6 @@ export function PhaseSevenSceneLab() {
     }),
   );
   const [reducedEffects, setReducedEffects] = useState<boolean>(() => reducedMotionDefault());
-  const [cameraMode, setCameraMode] = useState<CameraMode>('coding');
   const [previewEnabled, setPreviewEnabled] = useState(true);
   const [lifecycle, setLifecycle] = useState<RunLifecycleStateSchema>('idle');
   const [events, setEvents] = useState<readonly RunEventSchema[]>([]);
@@ -153,7 +151,7 @@ export function PhaseSevenSceneLab() {
     setPreviewEnabled(false);
 
     const runId = `run-${Date.now()}`;
-    const worker = new Worker(new URL('@codequest/code-runner/src/worker.ts', import.meta.url), {
+    const worker = new Worker(new URL('@codequest/code-runner/worker', import.meta.url), {
       type: 'module',
       name: 'codequest-runner',
     });
@@ -254,27 +252,6 @@ export function PhaseSevenSceneLab() {
         </button>
         <button
           type="button"
-          aria-pressed={cameraMode === 'coding'}
-          onClick={() => setCameraMode('coding')}
-        >
-          Coding
-        </button>
-        <button
-          type="button"
-          aria-pressed={cameraMode === 'preview'}
-          onClick={() => setCameraMode('preview')}
-        >
-          Preview
-        </button>
-        <button
-          type="button"
-          aria-pressed={cameraMode === 'strategic'}
-          onClick={() => setCameraMode('strategic')}
-        >
-          Strategic
-        </button>
-        <button
-          type="button"
           aria-pressed={previewEnabled}
           onClick={() => setPreviewEnabled((value) => !value)}
         >
@@ -308,7 +285,6 @@ export function PhaseSevenSceneLab() {
             quality={quality}
             reducedEffects={reducedEffects}
             movementState={movementState}
-            cameraMode={cameraMode}
             cameraResetToken={cameraResetToken}
             previewEnabled={previewEnabled}
             onPreviewNudge={handlePreviewNudge}

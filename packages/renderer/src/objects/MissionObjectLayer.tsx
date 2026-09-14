@@ -1,9 +1,11 @@
 import type { MissionObjectSchema, SimulationStateSchema } from '@codequest/domain';
 
+import type { QualityTier } from '../quality/qualityTier';
 import { defaultWorldConfig, worldFromCell } from '../world/worldTransform';
 
 export interface MissionObjectLayerProps {
   readonly objects: readonly MissionObjectSchema[];
+  readonly quality: QualityTier;
   readonly state: SimulationStateSchema;
 }
 
@@ -58,7 +60,15 @@ const SpawnObjectMesh = ({ object }: { object: Extract<MissionObjectSchema, { ki
   );
 };
 
-const GoalObjectMesh = ({ object, state }: { object: Extract<MissionObjectSchema, { kind: 'goal' }>; state: SimulationStateSchema }) => {
+const GoalObjectMesh = ({
+  object,
+  quality,
+  state,
+}: {
+  object: Extract<MissionObjectSchema, { kind: 'goal' }>;
+  quality: QualityTier;
+  state: SimulationStateSchema;
+}) => {
   const [x, y, z] = worldFromCell(object.cell);
   const collected = isCollected(state, `goal-${object.id}`);
   return (
@@ -76,7 +86,7 @@ const GoalObjectMesh = ({ object, state }: { object: Extract<MissionObjectSchema
         <cylinderGeometry args={[0.32, 0.36, 0.1, 12]} />
         <meshStandardMaterial color={goalPalette.base} flatShading />
       </mesh>
-      {!collected ? (
+      {!collected && quality !== 'low' ? (
         <pointLight color="#ffd65c" intensity={8} distance={4} position={[0, 0.8, 0]} />
       ) : null}
     </group>
@@ -136,7 +146,7 @@ const InteractableObjectMesh = ({
   state: SimulationStateSchema;
 }) => {
   const [x, y, z] = worldFromCell(object.cell);
-  const activeKey = `${object.id}-state`;
+  const activeKey = `interactable.${object.id}.state`;
   const active = isFlagOn(state, activeKey) || object.initialState === 'on';
   return (
     <group position={[x, y, z]}>
@@ -203,12 +213,16 @@ const DecorObjectMesh = ({ object }: { object: Extract<MissionObjectSchema, { ki
   );
 };
 
-const renderObject = (object: MissionObjectSchema, state: SimulationStateSchema) => {
+const renderObject = (
+  object: MissionObjectSchema,
+  state: SimulationStateSchema,
+  quality: QualityTier,
+) => {
   switch (object.kind) {
     case 'spawn':
       return <SpawnObjectMesh key={object.id} object={object} />;
     case 'goal':
-      return <GoalObjectMesh key={object.id} object={object} state={state} />;
+      return <GoalObjectMesh key={object.id} object={object} quality={quality} state={state} />;
     case 'collectible':
       return <CollectibleObjectMesh key={object.id} object={object} state={state} />;
     case 'blocker':
@@ -222,7 +236,11 @@ const renderObject = (object: MissionObjectSchema, state: SimulationStateSchema)
   }
 };
 
-export function MissionObjectLayer({ objects, state }: MissionObjectLayerProps) {
+export function MissionObjectLayer({ objects, quality, state }: MissionObjectLayerProps) {
   void defaultWorldConfig;
-  return <group name="mission-object-layer">{objects.map((object) => renderObject(object, state))}</group>;
+  return (
+    <group name="mission-object-layer">
+      {objects.map((object) => renderObject(object, state, quality))}
+    </group>
+  );
 }

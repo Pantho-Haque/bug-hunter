@@ -50,6 +50,8 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** contributors reproduce the build and package import direction is enforced.
 
+**Status:** Partial. The pnpm workspace, strict TypeScript, package-boundary checker, fixtures, contributor guide, and GitHub Actions verification workflow are present. Root `pnpm test` now builds workspace packages before running leaf tests, avoiding stale `dist` imports. A clean-browser smoke test remains absent, so this gate is not closed.
+
 ## Phase 4 — Domain contracts and content schema
 
 **Goal:** define the stable language used by authors, simulation, renderer, editor, and saves.
@@ -62,7 +64,7 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** M01 requires no level-specific UI code.
 
-**Status:** Implementation complete. Domain schemas in `packages/domain/src/{ids,ids-schemas,cells,commands,mission-objects,mission-package}.ts`. Persistence in `packages/persistence/src/{schemas,migrations}.ts`. Content registry + M01 fixture in `packages/content/src/{registry,missions/m01-first-steps,validation}.ts`. Handbook at `docs/content/HANDBOOK.md`. Traceability at `docs/evidence/phase-4/E-03-contract-test-report.md`. Test totals: domain 29, persistence 14, content 9, test-fixtures 16.
+**Status:** Partial. Domain schemas, persistence schemas, the content registry, M01 fixture, handbook, and contract report are present. Unknown state invariants now fail closed. The exit gate remains open: validation coverage does not yet demonstrate every promised malformed-import, unknown-reward, and incompatible-version case, and M01 still needs a complete production vertical slice to prove no level-specific UI is required.
 
 ## Phase 5 — Deterministic simulation engine
 
@@ -76,7 +78,7 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** headless M01 has byte-for-byte equivalent trace and end state on replay.
 
-**Status:** Implementation complete. Simulation package (`packages/simulation`) ships `createSimulation`, `reduceCommand`, `replayCommands`, `createSnapshotStore`, `validateMissionObjectives`. M01 reference traces replay deterministically; 19 tests cover every command branch. Dev-only trace viewer at `/spikes/phase-5`. Report at `docs/evidence/phase-5/E-04-simulation-trace-report.md`.
+**Status:** Partial. `packages/simulation` ships `createSimulation`, `reduceCommand`, `replayCommands`, `createSnapshotStore`, and `validateMissionObjectives`; M01 reference traces replay deterministically. The required M02–M06 reference traces and full timing-independence evidence are not yet present, so this phase is a strong M01 baseline rather than a closed simulation phase.
 
 ## Phase 6 — Secure player-code runner
 
@@ -90,13 +92,13 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** hostile fixtures cannot freeze UI, access browser capability, mutate simulation directly, or leak between runs.
 
-**Status:** Implementation complete. `packages/code-runner` ships `protocol.ts` (Zod schemas + parseHost/parseWorker + capability manifest), `capabilities.ts` (mission→allow-list), `coordinator.ts` (worker→simulation reducer with lifecycle), `fault-mapping.ts` (runFault + child-copy presentation), `worker.ts` (sandboxed QuickJS host with memory + stack + interrupt budgets, lifecycle resource cleanup). 29 tests cover protocol, fault-mapping, and 10 hostile-fixture scenarios including double Run, Pause, Step, and route-exit cancel. Dev-only runner lab at `/spikes/phase-6`. Threat model at `docs/evidence/phase-6/E-05-runner-threat-model.md`; hostile-code report at `docs/evidence/phase-6/E-06-hostile-code-report.md`.
+**Status:** Partial. `packages/code-runner` has an isolated QuickJS worker, fail-closed capability resolution, bounded commands, cancellation, protocol validation, fault mapping, and 30 tests. The Phase 7 browser lab successfully runs M01 through the worker. The approved DR-03 contract still needs implementation: worker commands are not yet an immutable host queue, Pause/Step cannot control a synchronous evaluation at command boundaries, hostile fixtures are mostly synthetic messages rather than real-worker integration tests, and `sourceLine` is currently a command ordinal rather than a dependable source location.
 
 ## Phase 7 — 3D greybox and camera/animation contract
 
 **Goal:** make code execution legible as third-person 3D action.
 
-**Work:** implement the React Three Fiber scene adapter, perspective streets and trails, third-person follow camera, shared avatar rig, boy and girl low-poly mesh presets, controller capsule, objects, blockers, and minimap from simulation data. Add WASD, arrow, touch, and camera controls for Preview only. Reset the authored scene before Code mode and map command IDs to movement and animation states. Implement camera collision, Coding View, strategic view, camera reset, reduced-motion behavior, low-quality tier, and responsive layout. Enforce object and asset budgets.
+**Work:** implement the React Three Fiber scene adapter, streamed continuous-looking districts, Strategic View as the default camera presentation, Preview View for third-person exploration, a shared mid-poly boy/girl avatar rig, controller capsule, objects, blockers, and minimap from simulation data. Add WASD, arrow, touch, and camera controls for Preview only. Reset the authored scene before Code mode and map command IDs to movement and animation states. Implement camera collision, optional coding overlay, camera reset, reduced-motion behavior, low-quality tier, responsive layout, level-of-detail assets, and visual chunk streaming. Enforce object and asset budgets.
 
 **Deliverables:** complete WebGL street or trail greybox, articulated avatar proxy, production rig contract, animation contract, camera test matrix, and performance dashboard.
 
@@ -104,7 +106,7 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** avatar, minimap, trace, line highlight, and simulation agree on current command; quality tier never changes outcome.
 
-**Status:** Implementation complete. `packages/renderer` ships the scene adapter (`SceneCanvas`, `SceneView`), shared avatar rig (`AvatarRig` with boy/girl presets), follow camera rig (`FollowCameraRig` with coding/strategic/preview modes + blocker occlusion + reset), mission object registry (`MissionObjectLayer` for every kind in the discriminated union), semantic minimap (`Minimap` SVG with avatar facing + collected/flags projection), preview controls (`PreviewControls` with WASD/arrow + touch pad), quality tier (`qualityTier` low/medium/high with reduced-motion probe + responsive layout helpers), animation contract (`commandAnimationSystem` mapping `RunEventSchema` → `AvatarMovementState` + active command marker), and world transform helpers (`worldTransform`). 28 renderer tests cover animation contract, quality resolution, world transform, minimap projection, and preview key binding. Dev-only greybox lab at `/spikes/phase-7`. Greybox + animation report at `docs/evidence/phase-7/E-07-greybox-animation-report.md`. The renderer consumes only `@codequest/domain` and never reaches into `simulation` or `content` internals (boundary check passes, 79 files scanned). Avatar, minimap, trace, and simulation agree on the current command via `deriveAnimationState(events, state)` which walks the same `RunEventSchema` stream the coordinator publishes.
+**Status:** Partial. `packages/renderer` provides the scene adapter, current low-poly boy/girl prototypes, camera modes, mission-object projection, semantic minimap, preview controls, quality tiers, and event-to-animation contract. The normal starter route now uses the shared renderer only as a non-executing M01 preview; learner code is never regex-parsed or directly executed there. Quality configuration is now applied to fog, shadows, and goal lights. The approved target adds Strategic View as default, Preview View, a Settings modal, mid-poly level-of-detail assets, and continuous-looking streamed environments. The remaining gate work is real camera-line occlusion, device/performance evidence, a production-size bundle budget, a real editor line mapping from the runner, and the newly approved renderer scope. Do not treat the Phase 7 spike as the Phase 8 vertical slice.
 
 ## Phase 8 — Learning/editor vertical slice
 

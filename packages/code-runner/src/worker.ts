@@ -38,6 +38,22 @@ interface RunContext {
   cancelled: boolean;
 }
 
+const classifyEvaluationFault = (
+  message: string,
+  context: RunContext,
+  interruptChecks: number,
+  maxInstructions: number,
+): Extract<WorkerToHostSchema, { type: 'runFault' }>['code'] => {
+  if (context.cancelled) return 'cancelled';
+  if (performance.now() - context.startedAt > context.deadlineMs || interruptChecks >= maxInstructions) {
+    return 'timeout';
+  }
+  if (/command budget exceeded/i.test(message)) return 'commandLimit';
+  if (/out of memory|stack/i.test(message)) return 'memory';
+  if (/referenceerror/i.test(message)) return 'blockedApi';
+  return 'syntax';
+};
+
 const activeRuns = new Map<string, RunContext>();
 
 const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>) => {
@@ -66,9 +82,14 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
   const runtime: QuickJSRuntime = loadResult.module.newRuntime();
   runtime.setMemoryLimit(message.budgets.memoryBytes);
   runtime.setMaxStackSize(512 * 1024);
+  let interruptChecks = 0;
   runtime.setInterruptHandler(() => {
+    interruptChecks += 1;
     if (context.cancelled) return true;
-    return performance.now() - context.startedAt > context.deadlineMs;
+    return (
+      interruptChecks >= message.budgets.maxInstructions ||
+      performance.now() - context.startedAt > context.deadlineMs
+    );
   });
 
   const jsContext: QuickJSContext = runtime.newContext();
@@ -84,7 +105,7 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
         if (context.cancelled) {
           throw new Error('cancelled');
         }
-        if (appliedCount + rejectedCount >= message.budgets.maxCommands) {
+        if (commandCounter >= message.budgets.maxCommands) {
           throw new Error('command budget exceeded');
         }
         commandCounter += 1;
@@ -129,7 +150,12 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
       send({
         type: 'runFault',
         runId: message.runId,
-        code: 'syntax',
+        code: classifyEvaluationFault(
+          errorMessage,
+          context,
+          interruptChecks,
+          message.budgets.maxInstructions,
+        ),
         reason: errorMessage,
       });
       activeRuns.delete(message.runId);
@@ -157,7 +183,12 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
       send({
         type: 'runFault',
         runId: message.runId,
-        code: 'memory',
+        code: classifyEvaluationFault(
+          error instanceof Error ? error.message : 'runtime error',
+          context,
+          interruptChecks,
+          message.budgets.maxInstructions,
+        ),
         reason: error instanceof Error ? error.message : 'runtime error',
       });
     }

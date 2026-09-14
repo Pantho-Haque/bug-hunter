@@ -68,7 +68,7 @@ export const workerToHostSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('runFault'),
     runId: runIdSchema,
-    code: z.enum(['timeout', 'memory', 'syntax', 'blockedApi', 'cancelled']),
+    code: z.enum(['timeout', 'memory', 'syntax', 'blockedApi', 'commandLimit', 'cancelled']),
     sourceLine: z.number().int().nonnegative().optional(),
     reason: z.string().min(1).optional(),
   }),

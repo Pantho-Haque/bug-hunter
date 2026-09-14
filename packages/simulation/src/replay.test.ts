@@ -295,4 +295,20 @@ describe('simulation: objective validation', () => {
     expect(result.ok).toBe(false);
     expect(result.issues.some((i) => i.code === 'step-budget-exceeded')).toBe(true);
   });
+
+  it('rejects an unrecognized state invariant instead of treating it as complete', () => {
+    const mission = {
+      ...m01FirstSteps,
+      completion: {
+        ...m01FirstSteps.completion,
+        stateInvariants: ['avatarReachesTreasure'],
+      },
+    };
+    const result = validateMissionObjectives(mission, m01FirstSteps.startState);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: 'unrecognized-state-invariant' }),
+    );
+  });
 });

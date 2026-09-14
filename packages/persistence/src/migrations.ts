@@ -55,6 +55,14 @@ export const migrateRecord = <TSchema extends z.ZodTypeAny>(
 };
 
 export const migrateSettings = (input: unknown): SettingsRecordSchema => {
+  const legacyPreset =
+    input !== null && typeof input === 'object' && 'avatarPreset' in input
+      ? (input as { readonly avatarPreset?: unknown }).avatarPreset
+      : undefined;
+  const normalizedInput =
+    legacyPreset === 'panda' || legacyPreset === 'fox' || legacyPreset === 'robot' || legacyPreset === 'wizard'
+      ? { ...(input as Record<string, unknown>), avatarPreset: 'girl' }
+      : input;
   if (input === undefined || input === null) {
     return migrateRecord(
       {},
@@ -64,7 +72,7 @@ export const migrateSettings = (input: unknown): SettingsRecordSchema => {
     );
   }
   return migrateRecord(
-    input,
+    normalizedInput,
     settingsMigrations,
     settingsRecordSchema,
     CURRENT_SETTINGS_VERSION,

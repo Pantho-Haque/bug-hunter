@@ -86,16 +86,16 @@ The Level Lab must use the same mission packages, runner, simulation, renderer, 
 
 The playground is a deterministic projection of simulation state. The renderer never decides collisions, collection, success, failure, inventory, or unlocks.
 
-The primary play view is a perspective WebGL world, not a flat board or a top-down token map. Each arena uses readable streets, trails, courtyards, bridges, or rooms that give the full-body avatar space to walk and run toward visible goals. The camera follows from behind at an elevated angle associated with third-person open-world games.
+The primary play view is a perspective WebGL world, not a flat board or a top-down token map. Each mission sits inside a continuous-looking district with streets, trails, courtyards, bridges, or rooms that give the full-body avatar space to walk and run toward visible goals. The game opens in Strategic View so the player can inspect the avatar, route, and objective before running code.
 
-“Open-world-style” describes the camera, character control, spatial freedom, and readable street or path staging only. It does not add driving, traffic simulation, combat, crime themes, crowds, or an unrestricted city to the educational v1 scope.
+“Open-world-style” describes the camera, character control, spatial freedom, and readable street or path staging only. Terrain, roads, landmarks, and sky extend beyond the active mission area so the screen never ends at a visible board edge. Mission logic remains deterministic: only authored cells and objects can change progress. Preview exploration can roam through connected environment chunks without completing a mission.
 
 Preview mode and Code mode use the same scene, avatar, collision layout, and camera rig. Preview accepts WASD, arrow keys, touch controls, and camera input for exploration. Code mode resets to the authored start state and moves the avatar only from validated program commands. Preview never completes objectives or changes progression.
 
 Required behavior:
 
-- Use a third-person camera with reset and comfort-distance settings
-- Render a continuous ground plane, traversable route, surrounding landmarks, and visible destination with true depth and perspective
+- Open in Strategic View; offer Preview View for third-person exploration and never present Coding View as a camera mode
+- Render streamed terrain, roads, landmarks, sky, and distant decoration beyond the active mission area; hide no visible board edge behind a wall or fog cutoff
 - Keep the active objective, avatar, and next traversable route readable
 - Let players select relevant objects with mouse, touch, and keyboard
 - Give each object a visible state, short name, text alternative, and interaction-range cue
@@ -108,7 +108,7 @@ Required behavior:
 
 The avatar communicates program state through motion and expression. Avatar presentation presets use the same skeleton, collision capsule, timing, and abilities.
 
-The production avatar is a complete stylized low-poly child character with a head, torso, arms, legs, hands, feet, hair, clothing, and a readable face. Boy and girl presentation presets may change hair, clothing, and silhouette details, but they share one humanoid rig and gameplay dimensions. The primitive Starter avatar is a development proxy, not the final character asset.
+The production avatar is a detailed stylized mid-poly child character with a head, torso, arms, legs, hands, feet, hair, clothing, and a readable face. Boy and girl presentation presets may change hair, clothing, and silhouette details, but they share one humanoid rig and gameplay dimensions. Asset variants use level-of-detail models so quality settings preserve readable silhouettes on weaker devices. The primitive Starter avatar is a development proxy, not the final character asset.
 
 The animation contract includes:
 

@@ -86,6 +86,9 @@ export const createCoordinator = (options: CoordinatorOptions): CoordinatorHandl
     return reduced.event;
   };
 
+  const belongsToActiveRun = (messageRunId: string): boolean =>
+    runId !== undefined && runId === messageRunId;
+
   return {
     onWorkerMessage(message) {
       switch (message.type) {
@@ -99,12 +102,13 @@ export const createCoordinator = (options: CoordinatorOptions): CoordinatorHandl
           stepping = false;
           return handle('running');
         case 'commandRequested': {
+          if (!belongsToActiveRun(message.runId)) return [];
           if (paused && !stepping) {
             return [];
           }
           if (applied + rejected >= options.budgets.maxCommands) {
-            const { fault } = mapRunnerFault('memory', {
-              reasonKey: 'run.memory.budget-exhausted',
+            const { fault } = mapRunnerFault('commandLimit', {
+              reasonKey: 'run.command-limit.exceeded',
             });
             return handle('fault', fault);
           }
@@ -121,13 +125,16 @@ export const createCoordinator = (options: CoordinatorOptions): CoordinatorHandl
           return [event];
         }
         case 'log':
+          if (!belongsToActiveRun(message.runId)) return [];
           return [];
         case 'runFinished': {
+          if (!belongsToActiveRun(message.runId)) return [];
           const lifecycleFinal: RunLifecycleStateSchema = lifecycle === 'fault' ? 'fault' : 'complete';
           lifecycle = lifecycleFinal;
           return [];
         }
         case 'runFault': {
+          if (!belongsToActiveRun(message.runId)) return [];
           const { fault } = mapRunnerFault(message.code, {
             sourceLine: message.sourceLine,
             reasonKey: message.reason ?? `run.${message.code}`,

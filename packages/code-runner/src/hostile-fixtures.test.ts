@@ -108,7 +108,7 @@ describe('hostile fixtures', () => {
     expect(fixture.handle.state().events.at(-1)).toMatchObject({ type: 'runFault', code: 'memory', reasonKey: 'run.memory' });
   });
 
-  it('handles allocation growth → memory fault with budget reason', () => {
+  it('stops a command flood at the mission command budget', () => {
     const fixture = buildFixture();
     fixture.handle.onWorkerMessage({ type: 'ready' });
     fixture.handle.onWorkerMessage({ type: 'runStarted', runId: 'r-alloc', apiVersion: 'v1' });
@@ -118,7 +118,7 @@ describe('hostile fixtures', () => {
     const state = fixture.handle.state();
     expect(state.applied + state.rejected).toBeLessThanOrEqual(16);
     expect(state.lifecycle).toBe('fault');
-    expect(state.events.at(-1)).toMatchObject({ type: 'runFault', code: 'memory' });
+    expect(state.events.at(-1)).toMatchObject({ type: 'runFault', code: 'commandLimit' });
   });
 
   it('handles blocked global access → blockedApi rejection', () => {
@@ -177,6 +177,16 @@ describe('hostile fixtures', () => {
     const stateAfter = fixture.handle.state();
     expect(stateAfter.runId).toBe('r-B');
     expect(stateAfter.applied).toBe(0);
+  });
+
+  it('ignores a stale worker message after a newer run starts', () => {
+    const fixture = buildFixture();
+    fixture.handle.onWorkerMessage({ type: 'ready' });
+    fixture.handle.onWorkerMessage({ type: 'runStarted', runId: 'r-old', apiVersion: 'v1' });
+    fixture.handle.onWorkerMessage({ type: 'runStarted', runId: 'r-current', apiVersion: 'v1' });
+
+    expect(fixture.handle.onWorkerMessage(commandRequested('r-old', 'c-stale', 'moveForward', 1))).toEqual([]);
+    expect(fixture.handle.state()).toMatchObject({ runId: 'r-current', applied: 0 });
   });
 
   it('Pause during run keeps commands queued until resume', () => {

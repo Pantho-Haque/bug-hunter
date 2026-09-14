@@ -28,6 +28,11 @@ export const FAULT_PRESENTATIONS: Readonly<Record<RunFaultSchema['code'], FaultP
     technicalDetail: 'The code asked for a capability the mission does not allow.',
     nextAction: 'remove-line',
   },
+  commandLimit: {
+    childCopy: 'That program has too many actions for this mission.',
+    technicalDetail: 'The command queue exceeded the mission command budget.',
+    nextAction: 'remove-line',
+  },
   cancelled: {
     childCopy: 'Run stopped early.',
     technicalDetail: 'The run was cancelled before it finished.',

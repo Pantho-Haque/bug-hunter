@@ -40,7 +40,7 @@ packages/renderer/src/
 - `movementState`: `'idle' | 'walking' | 'turning-left' | 'turning-right' | 'collecting' | 'interacting' | 'rejected' | 'fault'`
 - `activeCommand`: `{ sourceLine, commandId, kind }` for the most recent accepted or rejected command
 
-The same source line that the editor's line highlight uses is the same value the avatar rig reads. The same `commandId` that the simulation's `ReduceResult` returns is the same id the coordinator streams through `RunEventSchema`. The renderer does not compute mission truth — it only reflects what the events say.
+The same `commandId` that the simulation's `ReduceResult` returns is the same id the coordinator streams through `RunEventSchema`. The renderer does not compute mission truth — it only reflects what the events say. In the current runner spike, `sourceLine` is a provisional command ordinal; it must not be presented as an editor line until Phase 6 supplies a real source mapping.
 
 | Simulation event | Avatar rig state | Minimap marker | Active command |
 |---|---|---|---|
@@ -66,7 +66,7 @@ Tested in `commandAnimationSystem.test.ts` (9 tests covering each kind, fault fa
 
 `resetToken` snaps the camera back to the mode's home position; `cameraMode` prop is controlled by the parent (`SceneView` falls back to its own internal state when uncontrolled).
 
-Occlusion: every frame, the rig projects each `blocker` cell into the camera ray, clamps the distance to `max(blockerDistance - 0.4, 1.2, modeDistance)`, and updates the camera position. Verified visually in the Phase 7 spike by stepping behind a blocker.
+Occlusion is currently a proximity-based greybox pull-in, not a tested ray/line blocker check. It is useful for composition but does not satisfy the camera-occlusion gate until it only reacts to blockers between the target and desired camera position.
 
 ## Quality tiers
 
@@ -117,15 +117,13 @@ Test Files  5 passed (5)
      Tests  28 passed (28)
 ```
 
-## Gate status
+## Gate status — partial
 
 ```
-pnpm -r typecheck → 10/10 packages
-pnpm -r test      → 144 tests (29 domain, 14 persistence, 28 renderer,
-                    9 content, 19 simulation, 16 test-fixtures, 29 code-runner)
-pnpm -r lint      → 10/10 packages
-node scripts/check-package-boundaries.mjs → 79 files scanned
-pnpm -r build     → all packages
+pnpm lint      → passed locally
+pnpm typecheck → passed locally
+pnpm test      → passed locally (145 tests)
+pnpm build     → passed locally
 ```
 
 ## Direct evidence
@@ -142,16 +140,16 @@ Open `/spikes/phase-7` while `pnpm dev` is running. The page renders:
 - The Trace card showing every applied/rejected/fault event with source line.
 - The Current command card showing the active command's kind, line, movement, and avatar cell.
 
-## "Do not proceed until" check
+## "Do not proceed until" check — open
 
 The Phase 7 spec says "do not proceed until avatar, minimap, trace, line highlight, and simulation agree on current command." In the spike:
 
 - The avatar's animation state is `deriveAnimationState(events, state).movementState` — derived directly from the same `RunEventSchema` stream the trace card renders.
 - The minimap reads `state.avatar` from the same `SimulationState` the simulation reducer produces.
 - The trace card renders the same `RunEventSchema` items in order with their source line.
-- The editor's line highlight (Phase 8 work) will read from the same `activeCommand.sourceLine` field.
+- The editor must wait for Phase 6's real source mapping; it may not treat the current ordinal as a line number.
 
-All four surfaces share one source of truth: the coordinator's `state.events` array and the reducer's `nextState`. The renderer does not duplicate or recompute that data.
+The scene, minimap, and trace share the coordinator event stream and reducer state. The editor surface does not exist yet, and the source-location requirement is therefore not met.
 
 ## Asset and performance dashboard
 
@@ -164,9 +162,9 @@ All four surfaces share one source of truth: the coordinator's `state.events` ar
 
 The full mission-budget envelope (`maxMissionObjects: 24`, `maxTriangles: 8,000`) leaves headroom for M02–M30's larger scenes.
 
-## Open items for Phase 8
+## Required before Phase 8 starts
 
-1. Wire `codequest-editor`'s line highlight to read from `animation.activeCommand.sourceLine`.
-2. Add `MissionHud` chrome in the renderer (objective checklist, inventory readout) so the spike can drive the full M01 HUD without ad-hoc DOM.
-3. Bind the renderer's `audioEmitterLayer` to the coordinator's `log` events (the QuickJS `console.log` channel).
-4. Phase 8 should reuse `deriveAnimationState` for the `AvatarAnimationController`; no second implementation.
+1. Complete Phase 6's immutable command queue and real source mapping.
+2. Implement and test camera-line occlusion, then capture laptop/tablet/mobile performance evidence for quality tiers.
+3. Establish a production bundle budget and reduce the current renderer route payload before adding the editor.
+4. Once the preceding gates pass, Phase 8 must reuse `deriveAnimationState` for the `AvatarAnimationController`; no second implementation.

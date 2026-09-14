@@ -2,15 +2,15 @@
 meta:
   contentType: Decision
   decisionId: DR-01
-  status: Proposed
+  status: Approved for implementation
 ---
 
 # Decide the rendering stack and supported devices
 
 ## Status
 
-- State: Proposed
-- Owner: Technical lead, name pending
+- State: Approved for implementation
+- Owner: Product owner
 - Required reviewers: Product, UX and accessibility, 3D engineering
 - Blocks: Production scene, assets, editor integration, and performance budgets
 
@@ -18,9 +18,9 @@ meta:
 
 Can Vite, React, React Three Fiber, and Three.js deliver the required third-person 3D and editor experience on the minimum laptop and supported tablet tiers?
 
-## Proposed decision
+## Approved decision
 
-Use the documented TypeScript web stack and require WebGL 2. Treat the physical keyboard laptop experience as primary. Treat tablets with a hardware keyboard as conditional primary until Phase 2 proves the complete editing workspace. Devices without WebGL 2 receive a semantic unsupported-device surface.
+Use Vite, React, React Three Fiber, and Three.js. Treat the physical-keyboard laptop experience as primary. Support tablet and mobile layouts as responsive compatibility targets, including touch controls and a full-screen editor path. Devices without WebGL 2 receive a semantic unsupported-device surface.
 
 ## Alternatives
 
@@ -43,8 +43,7 @@ Acceptance enables Phase 3 workspace dependencies and Phase 7 renderer productio
 
 | Role | Name | Decision | Date | Evidence link |
 |---|---|---|---|---|
-| Product |  |  |  |  |
+| Product | Project owner | Approved for implementation | 2026-09-15 | Product direction in this thread |
 | Technical |  |  |  |  |
 | UX and accessibility |  |  |  |  |
 | 3D engineering |  |  |  |  |
-

@@ -6,7 +6,7 @@ This document defines product constraints and quality requirements. Use the [fea
 
 **CodeQuest 3D** is a local-first, browser-based 3D adventure in which a child writes small JavaScript programs to guide a chosen boy or girl avatar through missions, collect objects, and unlock a hand-crafted world map. It is an introduction to real JavaScript, not a competitive social network and not a general-purpose cloud IDE.
 
-The movement reference is a child-safe third-person exploration game: a full-body low-poly avatar walks or runs along authored streets, trails, and paths while a camera follows from behind. It is not a request for driving, combat, crime themes, traffic systems, crowds, or a large unrestricted city.
+The movement reference is a child-safe third-person exploration game: a full-body stylized mid-poly avatar walks or runs along authored streets, trails, and paths while a camera follows from behind in Preview View. It is not a request for driving, combat, crime themes, traffic systems, crowds, or a large unrestricted city.
 
 The emotional loop is: **notice an intriguing place → understand a small goal → write/run a short program → see the avatar act → receive specific, kind feedback → unlock a visible next adventure**. It has healthy, legible achievement feedback and player agency—not manipulative streaks, random rewards, scarcity, advertising, or pressure to return.
 
@@ -93,7 +93,7 @@ Priority: **Must** = MVP release gate; **Should** = first post-MVP; **Could** = 
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
 | FR-01 | Start with one tap/click and no account, email, age field, analytics identifier, or consent wall.                                       | Must     | A fresh install starts a playable intro offline after assets are cached.                             |
 | FR-02 | Let the player choose a boy or girl **fully rigged 3D avatar**, then choose a preset call sign, skin-tone range, hair, clothing color, and unlocked accessories from child-safe options. | Must | Preset identifiers are saved locally and can change in Settings without losing progress. Every approved preset is equally capable. Free-text child names are not stored. |
-| FR-03 | Provide Settings: avatar, audio, accessibility, display/camera, controls, learning/editor, local-data management, and parent/teacher information. | Must | Each setting previews or changes immediately, persists locally, and has a child-readable explanation. Clear requires a child-readable confirmation. |
+| FR-03 | Provide a Settings button that opens one modal: avatar, audio, accessibility, display/camera, controls, learning/editor, local-data management, and parent/teacher information. | Must | Each setting previews or changes immediately, persists locally, and has a child-readable explanation. The modal restores focus to the Settings button when it closes. Clear requires a child-readable confirmation. |
 | FR-04 | Explain local saving in child-readable language and give a parent/teacher note.                                                         | Must     | No opaque identifiers or remote profile are created.                                                 |
 | FR-05 | Offer an optional local “challenge mode” (personal best moves/runs) after the child understands normal completion.                      | Should   | It is off by default; no timer or score is shown in core learning flow.                              |
 
@@ -198,7 +198,7 @@ The original scope has a strong learning loop, but these are the most important 
 | First-time 3D orientation | A child may not know whether the camera, avatar, or minimap is the thing they control. Start with a 30-second playable “camera and avatar” toy before the first code puzzle, using prompts that disappear after success. | Must |
 | Animation and simulation disagreement | A beautiful animation that finishes late or misses a command breaks trust in coding. The simulation is authoritative; command state, animation state, HUD, minimap, and completion checks must share a command ID and recover after a dropped frame. | Must |
 | Ambiguous APIs | `moveForward()` may be unclear at intersections or slopes. Every API command needs a visual precondition, plain-language contract, example, failure reason, and predictable effect. | Must |
-| Invisible boundaries | Children cannot plan routes when collision, grid cells, interaction range, or facing direction are hidden. Offer a toggleable “coding view” that reveals traversable tiles, facing arrow, interaction radius, and objective path. | Must |
+| Invisible boundaries | Children cannot plan routes when collision, grid cells, interaction range, or facing direction are hidden. Offer a toggleable coding overlay that reveals traversable tiles, facing arrow, interaction radius, and objective path. | Must |
 | Accidental destructive actions | Restart, reset code, import, clear data, and avatar changes can cause loss/confusion. Give undo where feasible, confirm consequential actions in simple language, and distinguish “restart the scene” from “erase my code.” | Must |
 | Progress recovery | Local-only save can disappear due to storage clearing or shared school devices. Surface a gentle export reminder only after a milestone, auto-create a local recovery snapshot, and provide an import preview before overwrite. | Should |
 | Content dead ends | A faulty/misconfigured level can block a child indefinitely. Each level requires author-time solvability validation, a known-valid reference solution, reachable-objective test, and escape/skip-for-review route. | Must |
@@ -225,12 +225,12 @@ The original scope has a strong learning loop, but these are the most important 
 
 ### H. Local settings: UX and storage contract
 
-Settings make the game feel like the child’s own world and remove repeated friction. Save them in one versioned local record such as `codequest.settings.v1`; settings are small primitives/preset IDs only—never typed names, voice, images, contacts, or behavioral histories. Apply a change immediately where safe, show a short preview, and use “Reset this category” rather than an unexplained global reset.
+Settings make the game feel like the child’s own world and remove repeated friction. A persistent Settings button opens one accessible modal from the map and mission shell. The modal groups avatar, camera, controls, audio, access, learning, and local-data options without navigating the player away from the current scene. Save settings in one versioned local record such as `codequest.settings.v1`; settings are small primitives/preset IDs only—never typed names, voice, images, contacts, or behavioral histories. Apply a change immediately where safe, show a short preview, and use “Reset this category” rather than an unexplained global reset.
 
 | Category | Local settings | UX behavior |
 |---|---|---|
 | Avatar | `presentation`, `skinToneId`, `hairId`, `outfitId`, `accessoryIds`, `emoteId` | A rotating 3D preview confirms the choice before “Done.” Cosmetics never change ability. |
-| Camera & display | `cameraDistance`, `cameraSide`, `cameraSensitivity`, `qualityMode`, `showMinimap`, `showRoutePreview`, `uiScale` | Offer **Near / Standard / Far** rather than raw numbers. Preview safely; default to Standard. |
+| Camera & display | `defaultView`, `cameraDistance`, `cameraSide`, `cameraSensitivity`, `qualityMode`, `showMinimap`, `showRoutePreview`, `uiScale` | Offer **Strategic** and **Preview** as view choices. Default to Strategic. Offer **Near / Standard / Far** rather than raw numbers. Preview safely. |
 | Controls | `inputMode`, `moveBindings`, `interactBinding`, `pauseBinding`, `runBinding`, `codeFontSize` | Simple defaults plus remapping and left-handed/touch layouts; never force a detected keyboard. |
 | Audio | `masterVolume`, `musicVolume`, `effectsVolume`, `voiceVolume`, `captionsEnabled`, `readAloudEnabled` | Mute All and individual sliders; captions enable automatically with narration. |
 | Comfort & access | `textSize`, `highContrast`, `reducedMotion`, `colorAssistMode`, `screenShake`, `flashReduction`, `dyslexiaFriendlyFont`, `focusMode` | Respect system reduced-motion initially; never rely on color, flashing, or sound alone. |
@@ -243,7 +243,7 @@ Recommended separation of local data:
 {
   "codequest.settings.v1": {
     "avatar": { "presentation": "girl", "hairId": "curl-02", "outfitId": "starter-teal" },
-    "camera": { "distance": "standard", "showMinimap": true, "showRoutePreview": true },
+    "camera": { "defaultView": "strategic", "distance": "standard", "showMinimap": true, "showRoutePreview": true },
     "accessibility": { "textSize": "medium", "reducedMotion": false, "captionsEnabled": true },
     "editor": { "codeAssistLevel": "guided", "autoCompleteEnabled": true, "runSpeed": "normal" }
   },
@@ -251,15 +251,15 @@ Recommended separation of local data:
 }
 ```
 
-First-launch defaults: standard third-person camera; captions on if narration is enabled; code assistance, minimap, and route preview on; normal movement animation; no timer. If storage is unavailable/full, keep the session playable, explain this calmly, and offer export when possible.
+First-launch defaults: Strategic View; captions on if narration is enabled; code assistance, minimap, and route preview on; normal movement animation; no timer. If storage is unavailable/full, keep the session playable, explain this calmly, and offer export when possible.
 
 ### I. Third-person 3D avatar specification
 
 The avatar should feel like the playable character in a third-person open-world game—not a top-down token. Yet the player is programming it, so each movement must make program intent obvious.
 
-Use a stylized low-poly art direction with a complete human silhouette. The avatar has a visible head, torso, arms, legs, hands, feet, hair, clothing, and face. Boy and girl presets share one humanoid rig, controller capsule, speed, abilities, and animation timing. Primitive shapes are acceptable for the engineering Starter only.
+Use a stylized mid-poly art direction with a complete human silhouette. The avatar has a visible head, torso, arms, legs, hands, feet, hair, clothing, and face. Boy and girl presets share one humanoid rig, controller capsule, speed, abilities, and animation timing. Use level-of-detail meshes so close characters look detailed while distant objects remain affordable. Primitive shapes are acceptable for the engineering Starter only.
 
-- **Camera:** Follow behind the avatar at a comfortable elevated angle. During execution use gentle auto-framing; do not take camera control away for long. Provide camera reset and a static strategic view.
+- **Camera:** Open in Strategic View. Preview View follows behind the avatar at a comfortable elevated angle and accepts exploration input. During execution use gentle auto-framing; do not take camera control away for long. Provide camera reset and a static strategic view.
 - **Movement:** `moveForward()` produces a visible walk cycle, footstep/dust cue, and directional marker. `turnLeft()` visibly pivots the body before the next step. Fast-forward changes playback speed, never physics or outcomes.
 - **World reactions:** Nearby collectibles glow subtly; interaction range has a simple prompt and contextual animation. Collection removes the object, updates HUD, and gives a brief sound/visual response.
 - **Failure:** A wall/unsafe tile safely stops the avatar, plays a puzzled animation, and points to the causal command/line. Avoid falls, violence, damage meters, or shame language.
@@ -409,7 +409,7 @@ Boy and girl presentations use one shared skeleton contract, collision capsule, 
 
 | Character property | Production convention | Prototype gate |
 |---|---|---|
-| Form | Complete stylized low-poly human with a readable silhouette at gameplay distance | Recognizable from the default camera on the minimum display size |
+| Form | Complete stylized mid-poly human with a readable silhouette at gameplay distance | Recognizable from the default camera on the minimum display size |
 | Rig | One humanoid skeleton with root, hips, spine, head, arm, hand, leg, and foot joints | Walk, run, pivot, interact, puzzled, celebrate, and reset clips retarget without mesh-specific code |
 | Presets | Boy and girl base presentations plus child-safe hair, skin-tone, and clothing options | Every preset uses the same capsule, speed, reach, and animation timings |
 | Geometry | Proposed cap of 12,000 visible triangles for the player at the highest v1 quality tier | Establish the final cap during the target-device greybox spike |
@@ -428,7 +428,7 @@ Use named attachment points (`head`, `back`, `leftHand`, `rightHand`) for cosmet
 
 ### 7A.5 Mission arena and authoring contract
 
-Each mission is a small authored puzzle arena: visually rich, but fully inspectable in coding view. Decorative props cannot create hidden collision or fake interactability.
+Each mission is an authored puzzle area inside a continuous-looking district: visually rich, but fully inspectable through the optional coding overlay. Decorative props cannot create hidden collision or fake interactability.
 
 | Object | Required fields | Rules |
 |---|---|---|

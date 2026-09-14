@@ -51,14 +51,14 @@ export function AvatarRig({ isMoving, movementState, presentation, reducedEffect
   return (
     <group>
       <mesh castShadow position={[0, 2.4, 0]}>
-        <sphereGeometry args={[0.34, 10, 8]} />
+        <sphereGeometry args={[0.34, 16, 12]} />
         <meshStandardMaterial color={theme.skinColor} flatShading />
       </mesh>
       <mesh castShadow position={[0, 2.55, -0.05]}>
         {theme.hairStyle === 'short' ? (
-          <sphereGeometry args={[0.36, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <sphereGeometry args={[0.36, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
         ) : (
-          <sphereGeometry args={[0.42, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <sphereGeometry args={[0.42, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
         )}
         <meshStandardMaterial color={theme.hairColor} flatShading />
       </mesh>
@@ -82,6 +82,18 @@ export function AvatarRig({ isMoving, movementState, presentation, reducedEffect
         <coneGeometry args={[0.07, 0.12, 6]} />
         <meshStandardMaterial color={theme.skinColor} flatShading />
       </mesh>
+      <mesh castShadow position={[-0.12, 2.47, 0.31]}>
+        <sphereGeometry args={[0.035, 8, 6]} />
+        <meshStandardMaterial color="#172239" flatShading />
+      </mesh>
+      <mesh castShadow position={[0.12, 2.47, 0.31]}>
+        <sphereGeometry args={[0.035, 8, 6]} />
+        <meshStandardMaterial color="#172239" flatShading />
+      </mesh>
+      <mesh castShadow position={[0, 2.25, 0.315]}>
+        <boxGeometry args={[0.12, 0.025, 0.025]} />
+        <meshStandardMaterial color="#b85f72" flatShading />
+      </mesh>
       <mesh castShadow position={[-0.3, 2.4, 0]}>
         <sphereGeometry args={[0.06, 6, 5]} />
         <meshStandardMaterial color={theme.skinColor} flatShading />
@@ -93,6 +105,10 @@ export function AvatarRig({ isMoving, movementState, presentation, reducedEffect
       <mesh castShadow position={[0, 1.85, 0]}>
         <boxGeometry args={[0.78, 0.8, 0.46]} />
         <meshStandardMaterial color={theme.shirtColor} flatShading />
+      </mesh>
+      <mesh castShadow position={[0, 2.14, 0.25]}>
+        <boxGeometry args={[0.34, 0.12, 0.04]} />
+        <meshStandardMaterial color="#f4f7fb" flatShading />
       </mesh>
       <mesh castShadow position={[0, 1.36, 0]}>
         <boxGeometry args={[0.78, 0.24, 0.46]} />

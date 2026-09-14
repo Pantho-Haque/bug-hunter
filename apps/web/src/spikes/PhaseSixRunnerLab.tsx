@@ -112,7 +112,7 @@ export function PhaseSixRunnerLab() {
     }
 
     const runId = `run-${Date.now()}`;
-    const worker = new Worker(new URL('@codequest/code-runner/src/worker.ts', import.meta.url), {
+    const worker = new Worker(new URL('@codequest/code-runner/worker', import.meta.url), {
       type: 'module',
       name: 'codequest-runner',
     });

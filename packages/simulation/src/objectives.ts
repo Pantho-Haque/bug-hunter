@@ -8,6 +8,7 @@ export interface ObjectiveIssue {
     | 'missing-object'
     | 'missing-flag'
     | 'missing-collected'
+    | 'unrecognized-state-invariant'
     | 'wrong-terminal-cell'
     | 'step-budget-exceeded';
   readonly path: string;
@@ -66,7 +67,7 @@ const validateInvariant = (
     return { ok, reason: `expected avatar at (${coordCell.cellX},${coordCell.cellZ})` };
   }
 
-  return { ok: true, reason: 'unrecognized invariant — assumed passing' };
+  return { ok: false, reason: `unrecognized state invariant: ${invariant}` };
 };
 
 export const validateMissionObjectives = (
@@ -79,7 +80,9 @@ export const validateMissionObjectives = (
     const result = validateInvariant(invariant, state, mission);
     if (!result.ok) {
       issues.push({
-        code: 'state-invariant-failed',
+        code: result.reason.startsWith('unrecognized state invariant')
+          ? 'unrecognized-state-invariant'
+          : 'state-invariant-failed',
         path: `completion.stateInvariants[${invariant}]`,
         message: result.reason,
       });

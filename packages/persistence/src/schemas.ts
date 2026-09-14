@@ -12,8 +12,14 @@ import {
 
 export const settingsSchemaVersionSchema = z.literal(1).default(1);
 
-export const avatarPresetSchema = z.enum(['panda', 'fox', 'robot', 'wizard']);
+export const avatarPresetSchema = z.enum(['boy', 'girl']);
 export type AvatarPresetSchema = z.infer<typeof avatarPresetSchema>;
+
+export const defaultViewSchema = z.enum(['strategic', 'preview']);
+export type DefaultViewSchema = z.infer<typeof defaultViewSchema>;
+
+export const qualityModeSchema = z.enum(['auto', 'low', 'medium', 'high']);
+export type QualityModeSchema = z.infer<typeof qualityModeSchema>;
 
 export const textScaleSchema = z.enum(['small', 'medium', 'large', 'xlarge']);
 export type TextScaleSchema = z.infer<typeof textScaleSchema>;
@@ -37,7 +43,9 @@ export const settingsRecordSchema = z.object({
   colorblindMode: colorblindModeSchema.default('none'),
   audioVolume: z.number().int().min(0).max(100).default(70),
   hapticsEnabled: z.boolean().default(true),
-  avatarPreset: avatarPresetSchema.default('panda'),
+  avatarPreset: avatarPresetSchema.default('girl'),
+  defaultView: defaultViewSchema.default('strategic'),
+  qualityMode: qualityModeSchema.default('auto'),
   showLineNumbers: z.boolean().default(true),
   autoRunOnEdit: z.boolean().default(false),
   parentControlsPinSet: z.boolean().default(false),
