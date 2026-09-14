@@ -25,3 +25,9 @@ Read the documents in this order:
 4. [Implementation architecture](docs/IMPLEMENTATION_ARCHITECTURE.md): package and runtime boundaries
 5. [Component architecture](docs/COMPONENT_ARCHITECTURE.md): component ownership, file structure, and requirement traceability
 6. [Implementation plan](docs/IMPLEMENTATION_PLAN.md): delivery phases and evidence gates
+
+### Current delivery phase
+
+The product baseline for Phase 1 is approved; specialist and physical-device evidence remains open. Start with the [Phase 1 product constraints](docs/phase-1/PHASE_1_PRODUCT_CONSTRAINTS.md) and [gate record](docs/phase-1/PHASE_1_GATE.md). Phase 2 disposable proof spikes are in progress and documented in the [Phase 2 evidence lab guide](docs/phase-2/PHASE_2_SPIKES.md). Production package extraction begins in Phase 3 only after the applicable gates pass.
+
+Run `pnpm dev`, then open `/spikes/phase-2` to exercise the development-only 3D, CodeMirror, QuickJS worker, and IndexedDB proofs.

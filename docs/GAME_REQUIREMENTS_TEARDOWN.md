@@ -496,6 +496,8 @@ Keep separate versioned records: `settings`, `progress`, and `levelCode`. `level
 
 ### 7A.10 Decision records that block implementation
 
+The Phase 1 [decision log](evidence/phase-1/E-02_DECISION_LOG.md) links the complete record for every decision below. Proposed values are spike hypotheses until their approval tables and evidence gates are complete.
+
 | ID | Decision | Evidence required | Blocks |
 |---|---|---|---|
 | DR-01 | Engine/rendering stack and supported devices | School-laptop/tablet spike | Scene, assets, editor integration |

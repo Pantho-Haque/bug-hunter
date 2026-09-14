@@ -12,6 +12,8 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 ## Phase 1 — Product constraints and success criteria
 
+**Implementation status:** Product baseline approved; specialist and physical-device evidence pending. Use the [Phase 1 product constraints](phase-1/PHASE_1_PRODUCT_CONSTRAINTS.md), [device and browser matrix](phase-1/DEVICE_BROWSER_MATRIX.md), [child-safety checklist](phase-1/CHILD_SAFETY_PRIVACY_CHECKLIST.md), [success measures](phase-1/SUCCESS_MEASURES.md), and [gate record](phase-1/PHASE_1_GATE.md). Decision status is tracked under [E-02](evidence/phase-1/E-02_DECISION_LOG.md).
+
 **Goal:** turn high-level intent into fixed launch constraints.
 
 **Work:** confirm age range, reading level, countries, browsers, minimum laptop/tablet, offline promise, and explicit v1 exclusions. Define child-playtest measures: first-mission completion, independent next action, concept transfer, frustration recovery, and accessibility blockers. Create DR-01 through DR-06.
@@ -23,6 +25,8 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 **Do not proceed until:** product, technical, and curriculum owners approve supported devices and child-safety scope.
 
 ## Phase 2 — Technical proof spikes
+
+**Implementation status:** In progress. The development-only [Phase 2 evidence lab](phase-2/PHASE_2_SPIKES.md) contains the four proof surfaces. Initial local results are recorded in the [spike report](evidence/phase-2/PHASE_2_SPIKE_REPORT.md); physical target-device and specialist evidence remains open.
 
 **Goal:** prove risky foundations independently before coupling them.
 
