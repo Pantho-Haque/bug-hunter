@@ -1,19 +1,51 @@
 # CodeQuest 3D
 
-CodeQuest 3D is a docs-first prototype for a local, browser-based JavaScript adventure for children ages 8 through 12. The target experience lets player code control a third-person avatar across 30 authored missions.
+CodeQuest 3D is a docs-first prototype for a local, browser-based JavaScript adventure for children ages 8 through 12. The target experience lets a child code control a third-person avatar across 30 authored missions.
+
+## Workspace
+
+This repository is a pnpm workspace. The deployable lives in `apps/web` and
+shared packages live under `packages/`. See `CONTRIBUTING.md` for the full
+layout and architectural rules.
+
+```
+apps/
+  web/                # Vite app shell + dev-only Phase 2 spike lab
+packages/
+  domain/             # branded IDs and shared types
+  simulation/         # pure deterministic reducers
+  content/            # authored mission data and copy
+  renderer/           # R3F scene adapters
+  editor/             # CodeMirror workspace
+  code-runner/        # restricted-runner protocol and limits
+  persistence/        # IndexedDB repositories and recovery
+  ui/                 # accessible shared HTML components
+  test-fixtures/      # sample levels, traces, and saves for tests
+```
 
 ## Run locally
 
 ```bash
 pnpm install
-pnpm dev
+pnpm dev              # boots apps/web at /
+                     # then open /spikes/phase-2 for the dev-only evidence lab
 ```
+
+Other workspace scripts: `pnpm build`, `pnpm typecheck`, `pnpm test`, `pnpm lint`,
+`pnpm preview`.
 
 ## Current implementation
 
-The repository contains an interactive five-zone map that previews all 30 mission tasks and a real WebGL Mission 01 scene. The Starter includes a higher-detail procedural low-poly avatar, boy and girl presentation presets, a third-person follow camera, a training street with buildings and landmarks, manual exploration controls, and a glowing code objective.
+The repository contains an interactive five-zone map that previews all 30 mission
+tasks and a real WebGL Mission 01 scene. The Starter includes a higher-detail
+procedural low-poly avatar, boy and girl presentation presets, a third-person
+follow camera, a training street with buildings and landmarks, manual
+exploration controls, and a glowing code objective.
 
-The Starter recognizes `moveForward()` calls for one visual route demonstration. It does not execute general JavaScript, save data, validate production missions, load final character assets, or implement progression. Do not treat its lightweight parser or primitive geometry as production architecture.
+The Starter recognizes `moveForward()` calls for one visual route demonstration.
+It does not execute general JavaScript, save data, validate production missions,
+load final character assets, or implement progression. Do not treat its
+lightweight parser or primitive geometry as production architecture.
 
 ## Documentation
 
@@ -28,6 +60,14 @@ Read the documents in this order:
 
 ### Current delivery phase
 
-The product baseline for Phase 1 is approved; specialist and physical-device evidence remains open. Start with the [Phase 1 product constraints](docs/phase-1/PHASE_1_PRODUCT_CONSTRAINTS.md) and [gate record](docs/phase-1/PHASE_1_GATE.md). Phase 2 disposable proof spikes are in progress and documented in the [Phase 2 evidence lab guide](docs/phase-2/PHASE_2_SPIKES.md). Production package extraction begins in Phase 3 only after the applicable gates pass.
+The product baseline for Phase 1 is approved; specialist and physical-device
+evidence remains open. Start with the
+[Phase 1 product constraints](docs/phase-1/PHASE_1_PRODUCT_CONSTRAINTS.md) and
+[gate record](docs/phase-1/PHASE_1_GATE.md). Phase 2 disposable proof spikes
+are in progress and documented in the
+[Phase 2 evidence lab guide](docs/phase-2/PHASE_2_SPIKES.md). The Phase 3
+engineering foundation has been laid: pnpm workspace, package boundaries,
+TypeScript project references, ESLint boundary enforcement, and Vitest.
 
-Run `pnpm dev`, then open `/spikes/phase-2` to exercise the development-only 3D, CodeMirror, QuickJS worker, and IndexedDB proofs.
+Run `pnpm dev`, then open `/spikes/phase-2` to exercise the development-only
+3D, CodeMirror, QuickJS worker, and IndexedDB proofs.

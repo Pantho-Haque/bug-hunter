@@ -1,0 +1,26 @@
+{
+  "name": "@codequest/simulation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "test": "echo \"@codequest/simulation: no tests yet\"",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@codequest/domain": "workspace:*"
+  }
+}

@@ -1,6 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef, type MutableRefObject } from 'react';
-import { Group, MathUtils, Vector3 } from 'three';
+import { MathUtils, Vector3, type Group } from 'three';
 
 export type AvatarPresentation = 'boy' | 'girl';
 export type ManualDirection = 'forward' | 'backward' | 'left' | 'right';
@@ -19,7 +19,9 @@ interface ThirdPersonWorldProps {
   runId: number;
 }
 
-interface PlayerProps extends ThirdPersonWorldProps {}
+interface PlayerProps extends ThirdPersonWorldProps {
+  readonly _unusedBrand?: never;
+}
 
 const startZ = -6;
 const stepDistance = 2;

@@ -1,0 +1,1 @@
+export const uiPackageMarker = '@codequest/ui';

@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/test-fixtures.tsbuildinfo",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": false,
+    "types": ["vitest/globals"]
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../domain" },
+    { "path": "../simulation" },
+    { "path": "../content" }
+  ]
+}

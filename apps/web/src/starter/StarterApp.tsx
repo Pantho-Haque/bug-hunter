@@ -2,35 +2,13 @@ import { lazy, Suspense, useCallback, useState } from 'react';
 
 import { AdventureMap } from './AdventureMap';
 import type { AvatarPresentation, ManualDirection } from './ThirdPersonWorld';
+import { starterCode } from './starterCode';
 
 const ThirdPersonWorld = lazy(() =>
   import('./ThirdPersonWorld').then((module) => ({ default: module.ThirdPersonWorld })),
 );
 
-const PhaseTwoLab = import.meta.env.DEV
-  ? lazy(() =>
-      import('./phase-two/PhaseTwoLab').then((module) => ({ default: module.PhaseTwoLab })),
-    )
-  : null;
-
-const starterCode = `// Guide Nova along the street to the beacon.
-moveForward();
-moveForward();
-moveForward();`;
-
-export function App() {
-  if (PhaseTwoLab && window.location.pathname === '/spikes/phase-2') {
-    return (
-      <Suspense fallback={<div className="scene-loading">Loading Phase 2 evidence lab…</div>}>
-        <PhaseTwoLab />
-      </Suspense>
-    );
-  }
-
-  return <StarterApp />;
-}
-
-function StarterApp() {
+export function StarterApp() {
   const [avatarPresentation, setAvatarPresentation] = useState<AvatarPresentation>('girl');
   const [code, setCode] = useState(starterCode);
   const [commandCount, setCommandCount] = useState(3);

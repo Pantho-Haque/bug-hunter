@@ -1,0 +1,1 @@
+export const rendererPackageMarker = '@codequest/renderer';

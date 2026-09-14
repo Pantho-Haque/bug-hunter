@@ -5,3 +5,8 @@ dist/
 .claude/
 You-Dont-Know-JS/
 probe.css
+coverage/
+.vite/
+*.log
+.env
+.env.local

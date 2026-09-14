@@ -7,7 +7,7 @@ import {
   type MutableRefObject,
   type RefObject,
 } from 'react';
-import { Group, MathUtils } from 'three';
+import type { Group } from 'three';
 
 export interface ArenaMetrics {
   frameCount: number;

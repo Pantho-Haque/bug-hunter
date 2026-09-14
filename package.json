@@ -2,33 +2,21 @@
   "name": "codequest-3d",
   "private": true,
   "version": "0.0.0",
+  "packageManager": "pnpm@9.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@codemirror/autocomplete": "^6.20.3",
-    "@codemirror/lang-javascript": "^6.2.5",
-    "@codemirror/language": "^6.12.4",
-    "@codemirror/lint": "^6.9.7",
-    "@codemirror/state": "^6.7.4",
-    "@codemirror/view": "^6.43.11",
-    "@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
-    "@react-three/fiber": "^9.7.0",
-    "@vitejs/plugin-react": "latest",
-    "codemirror": "^6.0.2",
-    "quickjs-emscripten-core": "^0.32.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "three": "^0.186.0",
-    "typescript": "latest",
-    "vite": "latest"
+    "dev": "pnpm --filter @codequest/web dev",
+    "build": "pnpm -r build",
+    "preview": "pnpm --filter @codequest/web preview",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint && node scripts/check-package-boundaries.mjs"
   },
   "devDependencies": {
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "@types/three": "0.186.0"
+    "@eslint/js": "^9.10.0",
+    "eslint": "^9.10.0",
+    "typescript": "~5.6.3",
+    "typescript-eslint": "^8.10.0",
+    "vitest": "^2.1.2"
   }
 }
