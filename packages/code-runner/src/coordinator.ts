@@ -30,6 +30,8 @@ export interface CoordinatorOptions {
 
 export interface CoordinatorHandle {
   onWorkerMessage(message: WorkerToHostSchema): RunEventSchema[];
+  /** Releases one immutable command at a host-controlled animation boundary. */
+  advance(): RunEventSchema[];
   pause(): RunEventSchema[];
   resume(): RunEventSchema[];
   cancel(reason: string): RunEventSchema[];
@@ -42,6 +44,8 @@ export interface CoordinatorState {
   readonly runId: string | undefined;
   readonly applied: number;
   readonly rejected: number;
+  readonly queued: number;
+  readonly workerFinished: boolean;
   readonly events: readonly RunEventSchema[];
 }
 
@@ -53,7 +57,8 @@ export const createCoordinator = (options: CoordinatorOptions): CoordinatorHandl
   let applied = 0;
   let rejected = 0;
   let paused = false;
-  let stepping = false;
+  let workerFinished = false;
+  const pendingCommands: Array<WorkerToHostSchema & { readonly type: 'commandRequested' }> = [];
 
   const handle = (
     next: RunLifecycleStateSchema,
@@ -89,6 +94,34 @@ export const createCoordinator = (options: CoordinatorOptions): CoordinatorHandl
   const belongsToActiveRun = (messageRunId: string): boolean =>
     runId !== undefined && runId === messageRunId;
 
+  const completeIfDrained = () => {
+    if (workerFinished && pendingCommands.length === 0 && lifecycle !== 'fault' && lifecycle !== 'cancelled') {
+      lifecycle = 'complete';
+    }
+  };
+
+  const releaseNext = (): RunEventSchema[] => {
+    if (paused || lifecycle === 'fault' || lifecycle === 'cancelled') return [];
+    const requested = pendingCommands[0];
+    if (!requested) {
+      completeIfDrained();
+      return [];
+    }
+    if (applied + rejected >= options.budgets.maxCommands) {
+      pendingCommands.splice(0, pendingCommands.length);
+      const { fault } = mapRunnerFault('commandLimit', { reasonKey: 'run.command-limit.exceeded' });
+      return handle('fault', fault);
+    }
+    pendingCommands.splice(0, 1);
+    const event = acceptCommand(
+      { commandId: requested.command.commandId, kind: requested.command.kind, sourceLine: requested.command.sourceLine },
+      requested.command.sourceLine,
+    );
+    events.push(event);
+    completeIfDrained();
+    return [event];
+  };
+
   return {
     onWorkerMessage(message) {
       switch (message.type) {
@@ -99,38 +132,27 @@ export const createCoordinator = (options: CoordinatorOptions): CoordinatorHandl
           applied = 0;
           rejected = 0;
           paused = false;
-          stepping = false;
+          workerFinished = false;
+          pendingCommands.splice(0, pendingCommands.length);
           return handle('running');
         case 'commandRequested': {
           if (!belongsToActiveRun(message.runId)) return [];
-          if (paused && !stepping) {
-            return [];
-          }
-          if (applied + rejected >= options.budgets.maxCommands) {
-            const { fault } = mapRunnerFault('commandLimit', {
-              reasonKey: 'run.command-limit.exceeded',
-            });
-            return handle('fault', fault);
-          }
-          stepping = false;
-          const event = acceptCommand(
-            {
-              commandId: message.command.commandId,
-              kind: message.command.kind,
-              sourceLine: message.command.sourceLine,
-            },
-            message.command.sourceLine,
-          );
-          events.push(event);
-          return [event];
+          // Copy the untrusted worker payload into an append-only host queue.
+          // Simulation reduction happens only through advance()/step().
+          pendingCommands.push(Object.freeze({
+            type: 'commandRequested',
+            runId: message.runId,
+            command: Object.freeze({ ...message.command }),
+          }));
+          return [];
         }
         case 'log':
           if (!belongsToActiveRun(message.runId)) return [];
           return [];
         case 'runFinished': {
           if (!belongsToActiveRun(message.runId)) return [];
-          const lifecycleFinal: RunLifecycleStateSchema = lifecycle === 'fault' ? 'fault' : 'complete';
-          lifecycle = lifecycleFinal;
+          workerFinished = true;
+          completeIfDrained();
           return [];
         }
         case 'runFault': {
@@ -143,13 +165,15 @@ export const createCoordinator = (options: CoordinatorOptions): CoordinatorHandl
         }
       }
     },
+    advance() {
+      return releaseNext();
+    },
     pause() {
       paused = true;
       return handle('paused');
     },
     resume() {
       paused = false;
-      stepping = false;
       return handle('running');
     },
     cancel(reason) {
@@ -158,8 +182,13 @@ export const createCoordinator = (options: CoordinatorOptions): CoordinatorHandl
     },
     step() {
       if (!paused) return [];
-      stepping = true;
-      return handle('stepping');
+      lifecycle = 'stepping';
+      paused = false;
+      const event = releaseNext();
+      paused = true;
+      const afterStep = lifecycle as RunLifecycleStateSchema;
+      if (afterStep !== 'complete' && afterStep !== 'fault') lifecycle = 'paused';
+      return event;
     },
     state() {
       return {
@@ -167,6 +196,8 @@ export const createCoordinator = (options: CoordinatorOptions): CoordinatorHandl
         runId,
         applied,
         rejected,
+        queued: pendingCommands.length,
+        workerFinished,
         events: [...events],
       };
     },

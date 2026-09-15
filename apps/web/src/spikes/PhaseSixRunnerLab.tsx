@@ -179,6 +179,28 @@ export function PhaseSixRunnerLab() {
     refreshLifecycle();
   }, [refreshLifecycle]);
 
+  const pauseRun = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session) return;
+    session.coordinator.pause();
+    refreshLifecycle();
+  }, [refreshLifecycle]);
+
+  const resumeRun = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session) return;
+    session.coordinator.resume();
+    session.coordinator.advance();
+    refreshLifecycle();
+  }, [refreshLifecycle]);
+
+  const stepRun = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session) return;
+    session.coordinator.step();
+    refreshLifecycle();
+  }, [refreshLifecycle]);
+
   return (
     <div className="phase-six-lab">
       <header className="phase-six-header">
@@ -204,6 +226,15 @@ export function PhaseSixRunnerLab() {
           </button>
           <button type="button" onClick={cancelRun}>
             Cancel
+          </button>
+          <button type="button" onClick={pauseRun}>
+            Pause
+          </button>
+          <button type="button" onClick={resumeRun}>
+            Resume
+          </button>
+          <button type="button" onClick={stepRun}>
+            Step
           </button>
         </div>
       </section>

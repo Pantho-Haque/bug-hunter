@@ -123,7 +123,16 @@ export function MissionPreview({
     playbackTimerRef.current = window.setTimeout(() => {
       playbackTimerRef.current = null;
       playbackActiveRef.current = false;
-      setQueuedEvents((current) => current.slice(1));
+      // The host releases exactly one command after the visible command has
+      // reached its boundary. The worker may already be finished, but it never
+      // mutates simulation state directly.
+      const session = sessionRef.current;
+      const released = session?.coordinator.advance() ?? [];
+      setQueuedEvents((current) => [...current.slice(1), ...released]);
+      if (session?.coordinator.state().lifecycle === 'complete' && released.length === 0) {
+        workerFinishedRef.current = true;
+        terminalLabelRef.current = 'Run finished. Adjust the route and run again.';
+      }
     }, hasReducedEffects ? 0 : commandPlaybackDuration(nextEvent));
   }, [hasReducedEffects, queuedEvents]);
 
@@ -132,8 +141,12 @@ export function MissionPreview({
       const session = sessionRef.current;
       if (!session) return;
       const next = session.coordinator.onWorkerMessage(message);
-      if (next.length > 0) {
-        setQueuedEvents((current) => [...current, ...next]);
+      // A worker evaluates source independently. Starting playback releases the
+      // first queued request; every later request waits for the preceding
+      // animation boundary above.
+      const released = message.type === 'runFinished' ? session.coordinator.advance() : [];
+      if (next.length > 0 || released.length > 0) {
+        setQueuedEvents((current) => [...current, ...next, ...released]);
       }
       const state = session.coordinator.state();
       if (state.lifecycle === 'complete') {

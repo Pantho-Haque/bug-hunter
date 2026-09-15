@@ -92,7 +92,7 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** hostile fixtures cannot freeze UI, access browser capability, mutate simulation directly, or leak between runs.
 
-**Status:** Partial. `packages/code-runner` has an isolated QuickJS worker, fail-closed capability resolution, bounded commands, cancellation, protocol validation, fault mapping, and 30 tests. The Phase 7 browser lab successfully runs M01 through the worker. The approved DR-03 contract still needs implementation: worker commands are not yet an immutable host queue, Pause/Step cannot control a synchronous evaluation at command boundaries, hostile fixtures are mostly synthetic messages rather than real-worker integration tests, and `sourceLine` is currently a command ordinal rather than a dependable source location.
+**Status:** In implementation. `packages/code-runner` has an isolated QuickJS worker, fail-closed capability resolution, bounded commands, cancellation, protocol validation, fault mapping, immutable host-side command queue, and authored source-line mapping. Host `advance()` and paused `step()` release one command only at a real host boundary; the mission player releases a later command only after the visible prior command completes. The remaining security gate is a browser-worker hostile-code integration harness; synthetic coordinator tests are not sufficient to claim that transport test is complete.
 
 ## Phase 7 — 3D greybox and camera/animation contract
 

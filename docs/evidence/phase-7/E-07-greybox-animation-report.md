@@ -40,7 +40,7 @@ packages/renderer/src/
 - `movementState`: `'idle' | 'walking' | 'turning-left' | 'turning-right' | 'collecting' | 'interacting' | 'rejected' | 'fault'`
 - `activeCommand`: `{ sourceLine, commandId, kind }` for the most recent accepted or rejected command
 
-The same `commandId` that the simulation's `ReduceResult` returns is the same id the coordinator streams through `RunEventSchema`. The renderer does not compute mission truth — it only reflects what the events say. In the current runner spike, `sourceLine` is a provisional command ordinal; it must not be presented as an editor line until Phase 6 supplies a real source mapping.
+The same `commandId` that the simulation's `ReduceResult` returns is the same id the coordinator streams through `RunEventSchema`. The renderer does not compute mission truth — it only reflects what the events say. The runner instruments direct capability calls with their authored line number while preserving newlines; comments, strings, and member calls are not rewritten. Repeated calls inside a loop therefore retain the line the learner wrote, rather than receiving an execution ordinal.
 
 | Simulation event | Avatar rig state | Minimap marker | Active command |
 |---|---|---|---|
@@ -66,7 +66,7 @@ Tested in `commandAnimationSystem.test.ts` (9 tests covering each kind, fault fa
 
 `resetToken` snaps the camera back to the mode's home position; `cameraMode` prop is controlled by the parent (`SceneView` falls back to its own internal state when uncontrolled).
 
-Occlusion is currently a proximity-based greybox pull-in, not a tested ray/line blocker check. It is useful for composition but does not satisfy the camera-occlusion gate until it only reacts to blockers between the target and desired camera position.
+Occlusion now tests the XZ segment from camera target to desired camera position against each blocker cell's world-space bounds, then pulls the camera just in front of the first intersected blocker. A nearby blocker outside that sight-line has no effect. `FollowCameraRig.test.ts` covers both cases.
 
 ## Quality tiers
 
@@ -162,9 +162,23 @@ The scene, minimap, and trace share the coordinator event stream and reducer sta
 
 The full mission-budget envelope (`maxMissionObjects: 24`, `maxTriangles: 8,000`) leaves headroom for M02–M30's larger scenes.
 
-## Required before Phase 8 starts
+## Phase 8 readiness update — 2026-09-15
 
-1. Complete Phase 6's immutable command queue and real source mapping.
-2. Implement and test camera-line occlusion, then capture laptop/tablet/mobile performance evidence for quality tiers.
-3. Establish a production bundle budget and reduce the current renderer route payload before adding the editor.
-4. Once the preceding gates pass, Phase 8 must reuse `deriveAnimationState` for the `AvatarAnimationController`; no second implementation.
+Completed in code:
+
+1. `@codequest/code-runner` now copies every worker request into an immutable host-side queue. Only `advance()` and paused `step()` reduce one command; `resume()` opens the next host boundary. The mission player releases its next command only after the visible prior command completes.
+2. Direct command calls carry their authored source line. The source-mapping tests cover loop calls and command-like text inside comments, strings, and member calls.
+3. Camera-line occlusion is implemented and unit-tested.
+4. The production build is split into a 112 KB mission shell (32 KB gzip), a 922 KB Three/R3F scene runtime (247 KB gzip), and a 391 KB editor runtime (133 KB gzip). The WebAssembly runner remains a separately fetched 503 KB asset. This keeps the initial shell under the 80 KB gzip budget while making the remaining scene/editor cost explicit.
+
+Still open and deliberately not certified from a developer browser:
+
+- A real-worker hostile-code integration harness (the existing hostile tests exercise the coordinator and protocol but not a browser Worker transport).
+- Physical Tier A laptop, tablet, and mobile measurements. Responsive browser emulation is useful evidence, but it cannot lock DR-01 or DR-05 because GPU, thermal, and input behavior differ.
+- The required product/curriculum/security/UX sign-offs for DR-01, DR-02, DR-03, and DR-05. Their decision documents remain **Approved for implementation**, not falsely marked locked.
+
+### Browser verification performed
+
+On 2026-09-15, the local application was opened through an actual browser Worker, not a mocked coordinator transport. The hostile fixture `while (true) {}` returned `Run stopped: interrupted.` while the page remained responsive. The M01 editor and Run control were also visible and usable at 1280×800, 768×1024, and 390×844 viewport sizes. This is browser integration and responsive-layout evidence only; it is not a physical laptop/tablet/mobile performance benchmark.
+
+Phase 8 implementation may proceed behind these open release-certification items; a production-release claim may not.

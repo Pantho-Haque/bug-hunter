@@ -54,8 +54,9 @@ describe('coordinator lifecycle', () => {
     const fixture = buildFixture();
     fixture.handle.onWorkerMessage({ type: 'ready' });
     fixture.handle.onWorkerMessage({ type: 'runStarted', runId: 'r1', apiVersion: 'v1' });
-    fixture.handle.onWorkerMessage(commandRequested('r1', 'c1', 'moveForward', 1));
+    fixture.handle.onWorkerMessage(commandRequested('r1', 'c1', 'moveForward', 4));
     fixture.handle.onWorkerMessage({ type: 'runFinished', runId: 'r1', durationMs: 10, appliedCommands: 1, rejectedCommands: 0 });
+    fixture.handle.advance();
 
     const state = fixture.handle.state();
     expect(state.lifecycle).toBe('complete');
@@ -68,6 +69,7 @@ describe('coordinator lifecycle', () => {
     fixture.handle.onWorkerMessage({ type: 'runStarted', runId: 'r2', apiVersion: 'v1' });
     fixture.handle.onWorkerMessage(commandRequested('r2', 'c1', 'interact', 1));
     fixture.handle.onWorkerMessage({ type: 'runFinished', runId: 'r2', durationMs: 10, appliedCommands: 0, rejectedCommands: 1 });
+    fixture.handle.advance();
     const state = fixture.handle.state();
     const rejection = state.events.find((e) => e.type === 'commandRejected');
     expect(rejection).toBeDefined();
@@ -115,6 +117,7 @@ describe('hostile fixtures', () => {
     for (let i = 0; i < 20; i++) {
       fixture.handle.onWorkerMessage(commandRequested('r-alloc', `c-${i}`, 'moveForward', i));
     }
+    for (let i = 0; i < 17; i++) fixture.handle.advance();
     const state = fixture.handle.state();
     expect(state.applied + state.rejected).toBeLessThanOrEqual(16);
     expect(state.lifecycle).toBe('fault');
@@ -140,6 +143,7 @@ describe('hostile fixtures', () => {
     fixture.handle.onWorkerMessage({ type: 'ready' });
     fixture.handle.onWorkerMessage({ type: 'runStarted', runId: 'r-malformed', apiVersion: 'v1' });
     fixture.handle.onWorkerMessage(commandRequested('r-malformed', 'c1', 'moveForward', 999));
+    fixture.handle.advance();
     const state = fixture.handle.state();
     expect(state.applied).toBe(1);
     expect(fixture.handle.onWorkerMessage({ type: 'log', runId: 'r-malformed', log: { level: 'warn', message: 'malformed' } })).toEqual([]);
@@ -159,6 +163,7 @@ describe('hostile fixtures', () => {
     fixture.handle.onWorkerMessage({ type: 'ready' });
     fixture.handle.onWorkerMessage({ type: 'runStarted', runId: 'r-args', apiVersion: 'v1' });
     fixture.handle.onWorkerMessage(commandRequested('r-args', 'c1', 'moveForward', 1));
+    fixture.handle.advance();
     const events = fixture.handle.state().events;
     const rejection = events.find((e) => e.type === 'commandRejected');
     expect(rejection).toBeDefined();
@@ -197,21 +202,24 @@ describe('hostile fixtures', () => {
     fixture.handle.pause();
     expect(fixture.handle.state().lifecycle).toBe('paused');
     fixture.handle.onWorkerMessage(commandRequested('r-pause', 'c2', 'moveForward', 2));
-    expect(fixture.handle.state().applied).toBe(1);
+    expect(fixture.handle.state().applied).toBe(0);
     fixture.handle.resume();
-    expect(fixture.handle.state().lifecycle).toBe('running');
-    fixture.handle.onWorkerMessage(commandRequested('r-pause', 'c3', 'moveForward', 3));
-    expect(fixture.handle.state().applied).toBe(2);
+    fixture.handle.advance();
+    expect(fixture.handle.state().applied).toBe(1);
+    expect(fixture.handle.state().queued).toBe(1);
   });
 
   it('Step mode emits one command at a time when paused', () => {
     const fixture = buildFixture();
     fixture.handle.onWorkerMessage({ type: 'ready' });
     fixture.handle.onWorkerMessage({ type: 'runStarted', runId: 'r-step', apiVersion: 'v1' });
-    fixture.handle.onWorkerMessage(commandRequested('r-step', 'c1', 'moveForward', 1));
     fixture.handle.pause();
-    fixture.handle.step();
+    fixture.handle.onWorkerMessage(commandRequested('r-step', 'c1', 'moveForward', 1));
     fixture.handle.onWorkerMessage(commandRequested('r-step', 'c2', 'moveForward', 2));
+    fixture.handle.step();
+    expect(fixture.handle.state().applied).toBe(1);
+    expect(fixture.handle.state().queued).toBe(1);
+    fixture.handle.step();
     expect(fixture.handle.state().applied).toBe(2);
   });
 

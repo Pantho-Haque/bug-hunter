@@ -23,6 +23,44 @@ const MIN_ELEVATION = Math.PI * 0.12;
 const MAX_ELEVATION = Math.PI * 0.43;
 const MAX_FOCUS_OFFSET = 4;
 
+/** Returns the distance to the first blocker intersecting the camera sight-line. */
+export const occludedCameraDistance = (
+  target: Readonly<Vector3>,
+  cameraPosition: Readonly<Vector3>,
+  blockers: readonly { readonly cellX: number; readonly cellZ: number }[],
+  cellSize = defaultWorldConfig.cellSize,
+): number | undefined => {
+  const directionX = cameraPosition.x - target.x;
+  const directionZ = cameraPosition.z - target.z;
+  const length = Math.hypot(directionX, directionZ);
+  if (length === 0) return undefined;
+  let nearest: number | undefined;
+  for (const cell of blockers) {
+    const half = cellSize * 0.46;
+    const centerX = cell.cellX * cellSize;
+    const centerZ = cell.cellZ * cellSize;
+    const minX = centerX - half;
+    const maxX = centerX + half;
+    const minZ = centerZ - half;
+    const maxZ = centerZ + half;
+    const tx1 = (minX - target.x) / directionX;
+    const tx2 = (maxX - target.x) / directionX;
+    const tz1 = (minZ - target.z) / directionZ;
+    const tz2 = (maxZ - target.z) / directionZ;
+    const xNear = directionX === 0 ? (target.x >= minX && target.x <= maxX ? -Infinity : Infinity) : Math.min(tx1, tx2);
+    const xFar = directionX === 0 ? (target.x >= minX && target.x <= maxX ? Infinity : -Infinity) : Math.max(tx1, tx2);
+    const zNear = directionZ === 0 ? (target.z >= minZ && target.z <= maxZ ? -Infinity : Infinity) : Math.min(tz1, tz2);
+    const zFar = directionZ === 0 ? (target.z >= minZ && target.z <= maxZ ? Infinity : -Infinity) : Math.max(tz1, tz2);
+    const enter = Math.max(xNear, zNear);
+    const exit = Math.min(xFar, zFar);
+    if (enter <= exit && exit >= 0 && enter <= 1) {
+      const distance = Math.max(0, enter) * length;
+      if (nearest === undefined || distance < nearest) nearest = distance;
+    }
+  }
+  return nearest;
+};
+
 export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: FollowCameraRigProps) {
   const { camera, gl } = useThree();
   const azimuthRef = useRef<number>(0);
@@ -183,21 +221,14 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
       targetZ - Math.cos(azimuth) * horizontalDistance,
     );
 
-    let shortest = distance;
+    const blockerCells: Array<{ readonly cellX: number; readonly cellZ: number }> = [];
     for (const obj of mission.objects) {
       if (obj.kind !== 'blocker') continue;
-      for (const cell of obj.occupiedCells) {
-        const dx = cell.cellX - desiredTarget.current.x;
-        const dz = cell.cellZ - desiredTarget.current.z;
-        if (Math.abs(dx) > distance + 1 || Math.abs(dz) > distance + 1) continue;
-        const projected = Math.sqrt(dx * dx + dz * dz);
-        if (projected > 0 && projected < distance + 1 && projected < shortest) {
-          shortest = projected;
-        }
-      }
+      blockerCells.push(...obj.occupiedCells);
     }
-    const clampedDistance = Math.max(0.4, shortest - 0.4);
-    if (clampedDistance < distance) {
+    const blockedAt = occludedCameraDistance(desiredTarget.current, desiredPosition.current, blockerCells);
+    const clampedDistance = blockedAt === undefined ? distance : Math.max(0.4, blockedAt - 0.4);
+    if (blockedAt !== undefined && clampedDistance < distance) {
       desiredPosition.current.set(
         desiredTarget.current.x - (Math.sin(azimuth) * clampedDistance),
         desiredPosition.current.y,

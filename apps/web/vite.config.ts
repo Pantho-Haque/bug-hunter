@@ -27,4 +27,14 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@jitl/quickjs-wasmfile-release-sync'],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@codemirror') || id.includes('/codemirror/')) return 'editor-runtime';
+          if (id.includes('@react-three') || id.includes('/three/')) return 'scene-runtime';
+        },
+      },
+    },
+  },
 });

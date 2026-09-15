@@ -14,6 +14,7 @@ import type {
   WorkerToHostSchema,
 } from './protocol';
 import { parseHostToWorker } from './protocol';
+import { instrumentCommandSourceLines } from './source-mapping';
 
 const scope = self as DedicatedWorkerGlobalScope;
 
@@ -101,7 +102,7 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
 
   try {
     const commandMaker = (kind: RunnerCapabilitiesSchema['allowedCommandKinds'][number]) => {
-      const handle = jsContext.newFunction(kind, () => {
+      const handle = jsContext.newFunction(kind, (...args: QuickJSHandle[]) => {
         if (context.cancelled) {
           throw new Error('cancelled');
         }
@@ -110,10 +111,14 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
         }
         commandCounter += 1;
         const commandId = `c-${commandCounter}`;
+        const requestedLine = jsContext.dump(args[0]) as unknown;
+        const sourceLine = typeof requestedLine === 'number' && Number.isInteger(requestedLine)
+          ? requestedLine
+          : 0;
         send({
           type: 'commandRequested',
           runId: context.runId,
-          command: { commandId, kind, sourceLine: commandCounter },
+          command: { commandId, kind, sourceLine },
         });
         return jsContext.undefined;
       });
@@ -142,7 +147,11 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
       consoleHandle.dispose();
     }
 
-    const result = jsContext.evalCode(message.source, 'learner-code.js');
+    const instrumentedSource = instrumentCommandSourceLines(
+      message.source,
+      capabilities.allowedCommandKinds,
+    );
+    const result = jsContext.evalCode(instrumentedSource, 'learner-code.js');
     if (result.error) {
       const dumped = jsContext.dump(result.error) as { message?: string; name?: string } | string;
       result.error.dispose();
