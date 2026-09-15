@@ -35,7 +35,7 @@ export function AvatarEntity({
   movementState,
   presentation,
   reducedEffects,
-  stepDurationMs = 360,
+  stepDurationMs = 680,
   quality,
 }: AvatarEntityProps) {
   const groupRef = useRef<Group | null>(null);

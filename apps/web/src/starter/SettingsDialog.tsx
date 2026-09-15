@@ -101,7 +101,7 @@ export function SettingsDialog({
           </label>
         </fieldset>
 
-        <p className="settings-dialog__note">Changes update this preview now. Saving them between visits is part of the upcoming persistence slice.</p>
+        <p className="settings-dialog__note">Changes update the game now and are saved on this device.</p>
       </div>
     </dialog>
   );

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 
 import type { AvatarPresentation } from '@codequest/renderer';
 
@@ -9,25 +9,64 @@ const MissionPreview = lazy(() =>
   import('./MissionPreview').then((module) => ({ default: module.MissionPreview })),
 );
 
+const settingsStorageKey = 'codequest-3d:starter-settings:v1';
+
+interface StarterSettings {
+  readonly avatarPresentation: AvatarPresentation;
+  readonly hasReducedEffects: boolean;
+  readonly qualityPreference: QualityPreference;
+}
+
+const defaultSettings: StarterSettings = {
+  avatarPresentation: 'girl',
+  hasReducedEffects: false,
+  qualityPreference: 'auto',
+};
+
+const readSettings = (): StarterSettings => {
+  if (typeof window === 'undefined') return defaultSettings;
+
+  try {
+    const stored = window.localStorage.getItem(settingsStorageKey);
+    if (!stored) return defaultSettings;
+    const value: unknown = JSON.parse(stored);
+    if (!value || typeof value !== 'object') return defaultSettings;
+    const settings = value as Partial<StarterSettings>;
+    return {
+      avatarPresentation: settings.avatarPresentation === 'boy' ? 'boy' : 'girl',
+      hasReducedEffects: settings.hasReducedEffects === true,
+      qualityPreference: settings.qualityPreference === 'low' || settings.qualityPreference === 'medium' || settings.qualityPreference === 'high'
+        ? settings.qualityPreference
+        : 'auto',
+    };
+  } catch {
+    return defaultSettings;
+  }
+};
+
 export function StarterApp() {
-  const [avatarPresentation, setAvatarPresentation] = useState<AvatarPresentation>('girl');
-  const [hasReducedEffects, setHasReducedEffects] = useState(false);
-  const [qualityPreference, setQualityPreference] = useState<QualityPreference>('auto');
+  const [settings, setSettings] = useState<StarterSettings>(readSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showMap, setShowMap] = useState(true);
 
+  useEffect(() => {
+    window.localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
+  }, [settings]);
+
   return (
-    <div className={hasReducedEffects ? 'app quiet-mode' : 'app'}>
+    <div className={settings.hasReducedEffects ? 'app quiet-mode' : 'app'}>
       <a className="skip-link" href="#main-content">Skip to game</a>
       <header className="topbar">
         <button className="brand" onClick={() => setShowMap(true)} type="button">
           <span aria-hidden="true">✦</span> CodeQuest 3D
         </button>
-        <div className="topbar-actions">
-          <button className="avatar-button" onClick={() => setSettingsOpen(true)} type="button">
-            Settings
-          </button>
-        </div>
+        {showMap ? (
+          <div className="topbar-actions">
+            <button className="avatar-button" onClick={() => setSettingsOpen(true)} type="button">
+              Settings
+            </button>
+          </div>
+        ) : null}
       </header>
 
       <main id="main-content" tabIndex={-1}>
@@ -36,23 +75,23 @@ export function StarterApp() {
         ) : (
           <Suspense fallback={<div className="scene-loading">Loading the mission preview…</div>}>
             <MissionPreview
-              avatarPresentation={avatarPresentation}
-              hasReducedEffects={hasReducedEffects}
+              avatarPresentation={settings.avatarPresentation}
+              hasReducedEffects={settings.hasReducedEffects}
               onReturnToMap={() => setShowMap(true)}
-              qualityPreference={qualityPreference}
+              qualityPreference={settings.qualityPreference}
             />
           </Suspense>
         )}
       </main>
       <SettingsDialog
-        avatarPresentation={avatarPresentation}
-        onAvatarPresentationChange={setAvatarPresentation}
+        avatarPresentation={settings.avatarPresentation}
+        onAvatarPresentationChange={(avatarPresentation) => setSettings((current) => ({ ...current, avatarPresentation }))}
         onClose={() => setSettingsOpen(false)}
-        onQualityChange={setQualityPreference}
-        onReducedEffectsChange={setHasReducedEffects}
+        onQualityChange={(qualityPreference) => setSettings((current) => ({ ...current, qualityPreference }))}
+        onReducedEffectsChange={(hasReducedEffects) => setSettings((current) => ({ ...current, hasReducedEffects }))}
         open={settingsOpen}
-        quality={qualityPreference}
-        reducedEffects={hasReducedEffects}
+        quality={settings.qualityPreference}
+        reducedEffects={settings.hasReducedEffects}
       />
     </div>
   );

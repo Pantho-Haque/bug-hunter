@@ -21,6 +21,7 @@
     "@codequest/simulation": "workspace:*",
     "@codequest/ui": "workspace:*",
     "@codemirror/autocomplete": "^6.20.3",
+    "@fontsource/fira-code": "^5.3.0",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/language": "^6.12.4",
     "@codemirror/lint": "^6.9.7",
