@@ -1,7 +1,15 @@
-import type { ReactNode, RefObject } from 'react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import {
+  BufferGeometry,
+  Float32BufferAttribute,
+  CatmullRomCurve3,
+  TubeGeometry,
+  Vector3,
+} from 'three';
 import type { Group } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { surfaceTexture } from '../world/surfaceTexture';
 
 import { type QualityTier } from '../quality/qualityTier';
 import {
@@ -38,8 +46,6 @@ export function AvatarRig({
   const reducedEffectsRef = useRef(reducedEffects);
   const celebrationUntilRef = useRef(0);
 
-  const detailed = !quality || quality !== 'low';
-
   useEffect(() => {
     reducedEffectsRef.current = reducedEffects;
   }, [reducedEffects]);
@@ -55,7 +61,8 @@ export function AvatarRig({
     if (reducedEffectsRef.current) return;
     const time = performance.now() / 1000;
     const swing = isMoving ? Math.sin(time * 9) * 0.8 : 0;
-    const celebrate = performance.now() < celebrationUntilRef.current ? Math.sin(time * 16) * 0.7 : 0;
+    const celebrate =
+      performance.now() < celebrationUntilRef.current ? Math.sin(time * 16) * 0.7 : 0;
     const armSwing =
       movementState === 'turning-left' || movementState === 'turning-right'
         ? Math.sin(time * 12) * 0.45
@@ -67,7 +74,8 @@ export function AvatarRig({
     if (leftUpperArm.current) leftUpperArm.current.rotation.x = armSwing;
     if (rightUpperArm.current) rightUpperArm.current.rotation.x = -armSwing + celebrate;
     if (leftForeArm.current) leftForeArm.current.rotation.x = -0.15 + elbowSwing;
-    if (rightForeArm.current) rightForeArm.current.rotation.x = -0.15 + elbowSwing - celebrate * 0.6;
+    if (rightForeArm.current)
+      rightForeArm.current.rotation.x = -0.15 + elbowSwing - celebrate * 0.6;
     if (leftThigh.current) leftThigh.current.rotation.x = -swing;
     if (rightThigh.current) rightThigh.current.rotation.x = swing;
     if (leftShin.current) leftShin.current.rotation.x = -0.2 + kneeSwing;
@@ -77,497 +85,279 @@ export function AvatarRig({
   });
 
   const theme = avatarTheme(presentation);
-  const flat = quality === 'low';
-  const sphereSeg = detailed ? 16 : 10;
-  const sphereStack = detailed ? 12 : 6;
-
-  const skinProps = { color: theme.skinColor, flatShading: flat, shininess: 30, specular: '#5a4030' };
-  const shirtProps = { color: theme.shirtColor, flatShading: flat, shininess: 40, specular: '#666' };
-  const pantsProps = { color: theme.pantsColor, flatShading: flat, shininess: 30, specular: '#444' };
-  const hairProps = { color: theme.hairColor, flatShading: flat, shininess: 60, specular: '#3a2a18' };
-  const hairShadowProps = { color: theme.hairColor, flatShading: flat, shininess: 50, specular: '#1a1008' };
-  const eyeProps = { color: '#172239', flatShading: flat, shininess: 120, specular: '#ffffff' };
-  const lipProps = { color: '#b85f72', flatShading: flat, shininess: 80, specular: '#5a2a32' };
-  const collarProps = { color: '#f4f7fb', flatShading: flat, shininess: 60, specular: '#aab' };
-  const shoeProps = { color: '#eef3f5', flatShading: flat, shininess: 20, specular: '#888' };
-
-  const hairSeg = detailed ? 6 : 4;
-  const strandGrain = detailed ? 0.035 : 0.05;
-  const strandTipRatio = 0.45;
-  const sampleBezier = (
-    p0: readonly [number, number, number],
-    p1: readonly [number, number, number],
-    p2: readonly [number, number, number],
-    p3: readonly [number, number, number],
-    t: number,
-  ): readonly [number, number, number] => {
-    const it = 1 - t;
-    const b0 = it * it * it;
-    const b1 = 3 * it * it * t;
-    const b2 = 3 * it * t * t;
-    const b3 = t * t * t;
-    return [
-      b0 * p0[0] + b1 * p1[0] + b2 * p2[0] + b3 * p3[0],
-      b0 * p0[1] + b1 * p1[1] + b2 * p2[1] + b3 * p3[1],
-      b0 * p0[2] + b1 * p1[2] + b2 * p2[2] + b3 * p3[2],
-    ];
-  };
-
-  interface StrandSpec {
-    readonly p0: readonly [number, number, number];
-    readonly p1: readonly [number, number, number];
-    readonly p2: readonly [number, number, number];
-    readonly p3: readonly [number, number, number];
-    readonly thickness: number;
-    readonly segments?: number;
-    readonly swayRef?: RefObject<Group>;
-  }
-
-  const renderStrand = (spec: StrandSpec, key: string) => {
-    const segments = spec.segments ?? 6;
-    const tip = spec.thickness * strandTipRatio;
-    const grains: ReactNode[] = [];
-    for (let i = 0; i <= segments; i += 1) {
-      const t = i / segments;
-      const [x, y, z] = sampleBezier(spec.p0, spec.p1, spec.p2, spec.p3, t);
-      const radius = spec.thickness * (1 - t) + tip * t;
-      grains.push(
-        <mesh key={`${key}-${i}`} castShadow position={[x, y, z]}>
-          <sphereGeometry args={[radius, hairSeg, hairSeg]} />
-          <meshPhongMaterial {...hairProps} />
-        </mesh>,
-      );
-    }
-    if (!spec.swayRef) return <group key={key}>{grains}</group>;
-    return (
-      <group ref={spec.swayRef} key={key}>
-        {grains}
-      </group>
+  const segments = quality === 'low' ? 6 : quality === 'medium' ? 12 : 20;
+  const resources = useMemo(() => {
+    const head = profileMesh(
+      [
+        [2.13, 0.07, 0.075, 0.015],
+        [2.16, 0.115, 0.12, 0.025],
+        [2.23, 0.17, 0.15, 0],
+        [2.32, 0.2, 0.18, -0.01],
+        [2.42, 0.195, 0.172, -0.015],
+        [2.52, 0.185, 0.175, -0.025],
+        [2.61, 0.14, 0.14, -0.035],
+        [2.65, 0.04, 0.06, -0.035],
+      ],
+      segments,
+      true,
     );
-  };
-
+    const torso = profileMesh(
+      [
+        [1.33, 0.22, 0.14, 0],
+        [1.43, 0.245, 0.15, 0],
+        [1.6, 0.25, 0.15, 0],
+        [1.79, 0.31, 0.18, 0],
+        [1.94, 0.35, 0.155, -0.01],
+        [2.0, 0.27, 0.125, 0],
+        [2.04, 0.105, 0.095, 0],
+      ],
+      segments,
+    );
+    const pelvis = profileMesh(
+      [
+        [1.05, 0.21, 0.135, 0],
+        [1.17, 0.275, 0.16, 0],
+        [1.32, 0.235, 0.14, 0],
+      ],
+      segments,
+    );
+    const cap = profileMesh(
+      [
+        [2.44, 0.2, 0.18, -0.035],
+        [2.53, 0.195, 0.184, -0.03],
+        [2.63, 0.14, 0.14, -0.035],
+        [2.68, 0.005, 0.005, -0.035],
+      ],
+      segments,
+    );
+    const strands: BufferGeometry[] = [];
+    const count = quality === 'low' ? 10 : 22;
+    for (let i = 0; i < count; i += 1) {
+      const angle = (i / (count - 1)) * Math.PI;
+      const x = Math.cos(angle) * 0.18;
+      const z = -Math.sin(angle) * 0.18 - 0.035;
+      const long = theme.hairStyle === 'long';
+      const curve = new CatmullRomCurve3([
+        new Vector3(x * 0.25, 2.655, z * 0.5),
+        new Vector3(x, 2.52, z),
+        new Vector3(x * 1.04, 2.32, z - 0.025),
+        new Vector3(
+          x * (long ? 1.2 : 0.95),
+          long ? 1.91 + 0.045 * Math.sin(i) : 2.29,
+          z - (long ? 0.08 : 0),
+        ),
+      ]);
+      const strand = new TubeGeometry(
+        curve,
+        quality === 'low' ? 5 : 9,
+        long ? 0.032 : 0.018,
+        4,
+        false,
+      );
+      strands.push(strand);
+    }
+    const hair = mergeGeometries(strands)!;
+    strands.forEach((g) => g.dispose());
+    return {
+      head,
+      torso,
+      pelvis,
+      cap,
+      hair,
+      fabric: surfaceTexture('fabric'),
+      hairMap: surfaceTexture('hair'),
+    };
+  }, [segments, quality, theme.hairStyle]);
+  useEffect(
+    () => () => Object.values(resources).forEach((resource) => resource.dispose()),
+    [resources],
+  );
+  const facialSegments = quality === 'low' ? 6 : 12;
+  const facialRows = quality === 'low' ? 4 : 8;
+  const skin = <meshPhongMaterial color={theme.skinColor} shininess={12} specular="#362a25" />;
+  const cloth = (
+    <meshPhongMaterial
+      color={theme.shirtColor}
+      map={resources.fabric}
+      shininess={4}
+      specular="#161616"
+    />
+  );
+  const pants = (
+    <meshPhongMaterial
+      color={theme.pantsColor}
+      map={resources.fabric}
+      shininess={3}
+      specular="#111111"
+    />
+  );
+  const hair = (
+    <meshPhongMaterial
+      color={theme.hairColor}
+      map={resources.hairMap}
+      shininess={16}
+      specular="#43382c"
+    />
+  );
   return (
-    <group>
-      {detailed ? (
-        <>
-          <mesh castShadow position={[0, 2.4, 0]}>
-            <sphereGeometry args={[0.34, 18, 14]} />
-            <meshPhongMaterial {...skinProps} />
-          </mesh>
-          <mesh castShadow position={[-0.13, 2.32, 0.26]}>
-            <sphereGeometry args={[0.055, 10, 8]} />
-            <meshPhongMaterial {...skinProps} />
-          </mesh>
-          <mesh castShadow position={[0.13, 2.32, 0.26]}>
-            <sphereGeometry args={[0.055, 10, 8]} />
-            <meshPhongMaterial {...skinProps} />
-          </mesh>
-        </>
-      ) : (
-        <mesh castShadow position={[0, 2.4, 0]}>
-          <sphereGeometry args={[0.34, sphereSeg, sphereStack]} />
-          <meshPhongMaterial {...skinProps} />
-        </mesh>
-      )}
-
-      <mesh castShadow position={[0, 2.55, -0.05]}>
-        {theme.hairStyle === 'short' ? (
-          <sphereGeometry args={[0.38, sphereSeg + 4, sphereStack + 2, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        ) : (
-          <sphereGeometry args={[0.44, sphereSeg + 4, sphereStack + 4, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        )}
-        <meshPhongMaterial {...hairProps} />
+    <group name="human-avatar">
+      <mesh castShadow geometry={resources.head}>
+        {skin}
       </mesh>
-
-      {theme.hairStyle === 'short' ? (
-        <>
-          <mesh castShadow position={[0, 2.62, 0.18]}>
-            <sphereGeometry args={[0.22, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.2]} />
-            <meshPhongMaterial {...hairProps} />
+      <mesh castShadow geometry={resources.torso}>
+        {cloth}
+      </mesh>
+      <mesh castShadow geometry={resources.pelvis}>
+        {pants}
+      </mesh>
+      <mesh castShadow geometry={resources.cap}>
+        {hair}
+      </mesh>
+      <mesh castShadow geometry={resources.hair}>
+        {hair}
+      </mesh>
+      <mesh position={[0, 2.09, 0]}>
+        <cylinderGeometry args={[0.083, 0.1, 0.18, segments]} />
+        {skin}
+      </mesh>
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          <mesh position={[side * 0.2, 2.34, -0.008]} scale={[0.5, 1, 0.65]}>
+            <sphereGeometry args={[0.054, facialSegments, facialRows]} />
+            {skin}
           </mesh>
-          <mesh castShadow position={[-0.12, 2.7, 0.04]}>
-            <sphereGeometry args={[0.09, 10, 8]} />
-            <meshPhongMaterial {...hairProps} />
+          <mesh position={[side * 0.208, 2.34, 0.006]} scale={[0.3, 1, 0.5]}>
+            <sphereGeometry args={[0.031, facialSegments, facialRows]} />
+            <meshPhongMaterial color="#a97561" shininess={6} />
           </mesh>
-          <mesh castShadow position={[0.1, 2.71, -0.02]}>
-            <sphereGeometry args={[0.085, 10, 8]} />
-            <meshPhongMaterial {...hairProps} />
+          <mesh position={[side * 0.083, 2.392, 0.142]} scale={[1.4, 0.52, 0.35]}>
+            <sphereGeometry args={[0.035, facialSegments, facialRows]} />
+            <meshPhongMaterial color="#e0d6c5" shininess={30} />
           </mesh>
-          <mesh castShadow position={[0, 2.74, -0.18]}>
-            <sphereGeometry args={[0.1, 10, 8]} />
-            <meshPhongMaterial {...hairProps} />
+          <mesh position={[side * 0.083, 2.393, 0.155]} scale={[1, 1, 0.3]}>
+            <sphereGeometry args={[0.014, facialSegments, facialRows]} />
+            <meshPhongMaterial color="#423a28" shininess={65} />
           </mesh>
-          {Array.from({ length: detailed ? 18 : 10 }, (_, i) => {
-            const angle = (i / (detailed ? 17 : 9)) * Math.PI * 0.7 + Math.PI * 0.15;
-            const radius = 0.34;
-            const dx = Math.sin(angle) * radius;
-            const dz = -Math.abs(Math.cos(angle)) * radius * 0.85;
-            const tipDx = dx * 1.05;
-            const tipDz = dz - 0.04 - Math.abs(Math.sin(angle)) * 0.06;
-            const tipY = 2.5 - (1 - Math.cos(angle)) * 0.18;
-            return renderStrand(
-              {
-                p0: [dx, 2.62, dz],
-                p1: [dx * 1.02, 2.56, dz - 0.02],
-                p2: [tipDx, tipY + 0.05, tipDz],
-                p3: [tipDx, tipY, tipDz],
-                thickness: strandGrain,
-                segments: 3,
-              },
-              `short-grains-${i}`,
-            );
-          })}
-          {detailed ? (
-            <>
-              <mesh castShadow position={[-0.3, 2.5, -0.08]}>
-                <sphereGeometry args={[0.07, 8, 6]} />
-                <meshPhongMaterial {...hairShadowProps} />
-              </mesh>
-              <mesh castShadow position={[0.3, 2.5, -0.08]}>
-                <sphereGeometry args={[0.07, 8, 6]} />
-                <meshPhongMaterial {...hairShadowProps} />
-              </mesh>
-            </>
-          ) : null}
-        </>
-      ) : (
-        <>
-          <mesh castShadow position={[0, 2.6, 0.2]}>
-            <sphereGeometry args={[0.24, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2.4]} />
-            <meshPhongMaterial {...hairProps} />
+          <mesh position={[side * 0.083, 2.393, 0.16]} scale={[1, 1, 0.3]}>
+            <sphereGeometry args={[0.006, facialSegments, facialRows]} />
+            <meshPhongMaterial color="#111419" shininess={90} />
           </mesh>
-          {Array.from({ length: 14 }, (_, i) => {
-            const angle = (i / 14) * Math.PI - Math.PI * 0.05;
-            const dx = Math.sin(angle) * 0.34;
-            const dz = -Math.abs(Math.cos(angle)) * 0.32;
-            const tipDx = dx * 1.45;
-            const tipDz = -0.55 - i * 0.005;
-            const tipY = 1.1 + i * 0.02;
-            return renderStrand(
-              {
-                p0: [dx, 2.45, dz],
-                p1: [dx * 1.1, 2.05, dz - 0.1],
-                p2: [tipDx * 0.92, 1.55, tipDz * 0.85],
-                p3: [tipDx, tipY, tipDz],
-                thickness: strandGrain + 0.005,
-                segments: detailed ? 7 : 5,
-              },
-              `crown-${i}`,
-            );
-          })}
-          {Array.from({ length: detailed ? 22 : 12 }, (_, i) => {
-            const dx = (i / (detailed ? 21 : 11) - 0.5) * 0.62;
-            const tipDx = dx * 1.08;
-            const tipY = 1.35 + Math.sin(i * 0.7) * 0.06;
-            const tipDz = -0.36 - Math.sin(i * 0.5) * 0.04;
-            return renderStrand(
-              {
-                p0: [dx * 0.95, 2.4, -0.32],
-                p1: [dx, 2.1, -0.34],
-                p2: [tipDx * 0.95, 1.7, tipDz * 1.05],
-                p3: [tipDx, tipY, tipDz],
-                thickness: strandGrain + 0.002,
-                segments: detailed ? 8 : 5,
-              },
-              `back-${i}`,
-            );
-          })}
-          {Array.from({ length: detailed ? 12 : 6 }, (_, i) => {
-            const side = i % 2 === 0 ? -1 : 1;
-            const idx = Math.floor(i / 2);
-            const startDx = side * (0.28 + idx * 0.04);
-            const tipDx = side * (0.34 + idx * 0.06);
-            const startY = 2.35 - idx * 0.05;
-            const tipY = 1.55 - idx * 0.08;
-            return renderStrand(
-              {
-                p0: [startDx, startY, -0.05],
-                p1: [side * 0.32, startY - 0.15, -0.18],
-                p2: [tipDx * 1.05, tipY + 0.15, -0.32],
-                p3: [tipDx, tipY, -0.34],
-                thickness: strandGrain + 0.002,
-                segments: detailed ? 7 : 4,
-              },
-              `side-${i}`,
-            );
-          })}
-          {detailed ? (
-            <>
-              {Array.from({ length: 10 }, (_, i) => {
-                const t = i / 9;
-                const dx = (t - 0.5) * 0.5;
-                return renderStrand(
-                  {
-                    p0: [dx * 0.5, 2.62, 0.18],
-                    p1: [dx * 0.7, 2.52, 0.22],
-                    p2: [dx * 1.05, 2.42, 0.22],
-                    p3: [dx, 2.32, 0.18],
-                    thickness: strandGrain * 0.9,
-                    segments: 4,
-                  },
-                  `fringe-${i}`,
-                );
-              })}
-              <group ref={leftPigtail} position={[-0.34, 2.15, -0.18]}>
-                {[
-                  { phase: 0, dz: -0.02 },
-                  { phase: Math.PI * (2 / 3), dz: 0.015 },
-                  { phase: Math.PI * (4 / 3), dz: -0.005 },
-                ].map((strand, idx) => {
-                  const twistAmp = 0.04;
-                  return renderStrand(
-                    {
-                      p0: [0, 0, 0],
-                      p1: [
-                        Math.sin(strand.phase + 0.6) * twistAmp,
-                        -0.3,
-                        Math.cos(strand.phase + 0.6) * twistAmp * 0.6 + strand.dz,
-                      ],
-                      p2: [
-                        Math.sin(strand.phase + 1.8) * twistAmp,
-                        -0.6,
-                        Math.cos(strand.phase + 1.8) * twistAmp * 0.6 + strand.dz,
-                      ],
-                      p3: [
-                        Math.sin(strand.phase + 3.0) * twistAmp * 0.6,
-                        -0.85,
-                        Math.cos(strand.phase + 3.0) * twistAmp * 0.4 + strand.dz,
-                      ],
-                      thickness: strandGrain + 0.01,
-                      segments: 7,
-                    },
-                    `left-pigtail-${idx}`,
-                  );
-                })}
-              </group>
-              <group ref={rightPigtail} position={[0.34, 2.15, -0.18]}>
-                {[
-                  { phase: 0, dz: -0.02 },
-                  { phase: Math.PI * (2 / 3), dz: 0.015 },
-                  { phase: Math.PI * (4 / 3), dz: -0.005 },
-                ].map((strand, idx) => {
-                  const twistAmp = 0.04;
-                  return renderStrand(
-                    {
-                      p0: [0, 0, 0],
-                      p1: [
-                        Math.sin(strand.phase + 0.6) * twistAmp,
-                        -0.3,
-                        Math.cos(strand.phase + 0.6) * twistAmp * 0.6 + strand.dz,
-                      ],
-                      p2: [
-                        Math.sin(strand.phase + 1.8) * twistAmp,
-                        -0.6,
-                        Math.cos(strand.phase + 1.8) * twistAmp * 0.6 + strand.dz,
-                      ],
-                      p3: [
-                        Math.sin(strand.phase + 3.0) * twistAmp * 0.6,
-                        -0.85,
-                        Math.cos(strand.phase + 3.0) * twistAmp * 0.4 + strand.dz,
-                      ],
-                      thickness: strandGrain + 0.01,
-                      segments: 7,
-                    },
-                    `right-pigtail-${idx}`,
-                  );
-                })}
-              </group>
-            </>
-          ) : null}
-        </>
-      )}
-
-      <mesh castShadow position={[0, 2.06, 0]}>
-        <cylinderGeometry args={[0.08, 0.09, 0.2, 8]} />
-        <meshPhongMaterial {...skinProps} />
-      </mesh>
-
-      <mesh castShadow position={[0, 2.35, 0.32]}>
-        <coneGeometry args={[0.085, 0.14, 8]} />
-        <meshPhongMaterial {...skinProps} />
-      </mesh>
-
-      <mesh castShadow position={[-0.12, 2.47, 0.31]}>
-        <sphereGeometry args={[0.05, 12, 8]} />
-        <meshPhongMaterial {...eyeProps} />
-      </mesh>
-      <mesh castShadow position={[0.12, 2.47, 0.31]}>
-        <sphereGeometry args={[0.05, 12, 8]} />
-        <meshPhongMaterial {...eyeProps} />
-      </mesh>
-      {detailed ? (
-        <>
-          <mesh castShadow position={[-0.12, 2.475, 0.345]}>
-            <sphereGeometry args={[0.022, 8, 6]} />
-            <meshPhongMaterial color="#050a14" shininess={140} specular="#ffffff" />
+          <mesh
+            position={[side * 0.083, 2.435, 0.157]}
+            rotation={[0, 0, side * -0.08]}
+            scale={[1, 0.15, 0.4]}
+          >
+            <sphereGeometry args={[0.044, facialSegments, facialRows]} />
+            {hair}
           </mesh>
-          <mesh castShadow position={[0.12, 2.475, 0.345]}>
-            <sphereGeometry args={[0.022, 8, 6]} />
-            <meshPhongMaterial color="#050a14" shininess={140} specular="#ffffff" />
+        </group>
+      ))}
+      <mesh position={[0, 2.355, 0.17]} scale={[0.5, 1.3, 0.75]}>
+        <sphereGeometry args={[0.038, facialSegments, facialRows]} />
+        {skin}
+      </mesh>
+      <mesh position={[0, 2.317, 0.183]} scale={[1, 0.65, 0.85]}>
+        <sphereGeometry args={[0.025, facialSegments, facialRows]} />
+        {skin}
+      </mesh>
+      <mesh position={[0, 2.265, 0.149]} scale={[1, 0.16, 0.3]}>
+        <sphereGeometry args={[0.055, facialSegments, facialRows]} />
+        <meshPhongMaterial color="#986257" shininess={8} />
+      </mesh>
+      <mesh position={[0, 2.0, 0.112]} scale={[1, 0.45, 0.4]}>
+        <torusGeometry args={[0.1, 0.016, 4, 12, Math.PI]} />
+        {cloth}
+      </mesh>
+      {[-1, 1].map((side) => (
+        <group
+          key={side}
+          ref={side === -1 ? leftUpperArm : rightUpperArm}
+          position={[side * 0.35, 1.92, 0]}
+          rotation={[0, 0, side * 0.065]}
+        >
+          <mesh position={[0, -0.19, 0]} scale={[1, 1, 0.95]}>
+            <capsuleGeometry args={[0.105, 0.23, quality === 'low' ? 2 : 4, segments]} />
+            {cloth}
           </mesh>
-        </>
-      ) : null}
-
-      {detailed ? (
-        <mesh castShadow position={[0, 2.25, 0.32]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[0.045, 0.014, 6, 12, Math.PI]} />
-          <meshPhongMaterial {...lipProps} />
-        </mesh>
-      ) : (
-        <mesh castShadow position={[0, 2.25, 0.315]}>
-          <boxGeometry args={[0.12, 0.025, 0.025]} />
-          <meshPhongMaterial {...lipProps} />
-        </mesh>
-      )}
-
-      <mesh castShadow position={[-0.3, 2.4, 0]}>
-        <sphereGeometry args={[0.05, 8, 6]} />
-        <meshPhongMaterial {...skinProps} />
-      </mesh>
-      <mesh castShadow position={[0.3, 2.4, 0]}>
-        <sphereGeometry args={[0.05, 8, 6]} />
-        <meshPhongMaterial {...skinProps} />
-      </mesh>
-
-      {detailed ? (
-        <mesh castShadow position={[0, 1.97, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[0.2, 0.04, 8, 16]} />
-          <meshPhongMaterial {...collarProps} />
-        </mesh>
-      ) : null}
-
-      <mesh castShadow position={[0, 1.85, 0]}>
-        <boxGeometry args={[0.78, 0.5, 0.46]} />
-        <meshPhongMaterial {...shirtProps} />
-      </mesh>
-      <mesh castShadow position={[0, 1.5, 0]}>
-        <boxGeometry args={[0.78, 0.05, 0.46]} />
-        <meshPhongMaterial color={theme.pantsColor} flatShading={flat} shininess={20} specular="#222" />
-      </mesh>
-      <mesh castShadow position={[0, 1.22, 0]}>
-        <boxGeometry args={[0.78, 0.4, 0.46]} />
-        <meshPhongMaterial {...pantsProps} />
-      </mesh>
-
-      {detailed ? (
-        <>
-          <group ref={leftUpperArm} position={[-0.5, 1.83, 0]}>
-            <mesh castShadow position={[0, -0.22, 0]}>
-              <boxGeometry args={[0.22, 0.42, 0.24]} />
-              <meshPhongMaterial {...shirtProps} />
+          <group ref={side === -1 ? leftForeArm : rightForeArm} position={[0, -0.4, 0]}>
+            <mesh position={[0, -0.16, 0]}>
+              <cylinderGeometry args={[0.087, 0.057, 0.34, segments]} />
+              {skin}
             </mesh>
-            <group ref={leftForeArm} position={[0, -0.45, 0]}>
-              <mesh castShadow position={[0, -0.21, 0]}>
-                <boxGeometry args={[0.2, 0.4, 0.22]} />
-                <meshPhongMaterial {...skinProps} />
-              </mesh>
-              <mesh castShadow position={[0, -0.45, 0]}>
-                <sphereGeometry args={[0.13, 10, 8]} />
-                <meshPhongMaterial {...skinProps} />
-              </mesh>
-            </group>
-          </group>
-          <group ref={rightUpperArm} position={[0.5, 1.83, 0]}>
-            <mesh castShadow position={[0, -0.22, 0]}>
-              <boxGeometry args={[0.22, 0.42, 0.24]} />
-              <meshPhongMaterial {...shirtProps} />
+            <mesh position={[0, -0.385, 0.015]} scale={[0.75, 1.35, 0.45]}>
+              <sphereGeometry args={[0.075, facialSegments, facialRows]} />
+              {skin}
             </mesh>
-            <group ref={rightForeArm} position={[0, -0.45, 0]}>
-              <mesh castShadow position={[0, -0.21, 0]}>
-                <boxGeometry args={[0.2, 0.4, 0.22]} />
-                <meshPhongMaterial {...skinProps} />
-              </mesh>
-              <mesh castShadow position={[0, -0.45, 0]}>
-                <sphereGeometry args={[0.13, 10, 8]} />
-                <meshPhongMaterial {...skinProps} />
-              </mesh>
-            </group>
-          </group>
-        </>
-      ) : (
-        <>
-          <group ref={leftUpperArm} position={[-0.5, 1.83, 0]}>
-            <mesh castShadow position={[0, -0.38, 0]}>
-              <boxGeometry args={[0.22, 0.78, 0.24]} />
-              <meshPhongMaterial {...shirtProps} />
-            </mesh>
-            <mesh castShadow position={[0, -0.8, 0]}>
-              <sphereGeometry args={[0.13, 8, 6]} />
-              <meshPhongMaterial {...skinProps} />
+            <mesh position={[-side * 0.052, -0.38, 0.04]} rotation={[0, 0, side * -0.4]}>
+              <capsuleGeometry args={[0.02, 0.045, 2, 6]} />
+              {skin}
             </mesh>
           </group>
-          <group ref={rightUpperArm} position={[0.5, 1.83, 0]}>
-            <mesh castShadow position={[0, -0.38, 0]}>
-              <boxGeometry args={[0.22, 0.78, 0.24]} />
-              <meshPhongMaterial {...shirtProps} />
+        </group>
+      ))}
+      {[-1, 1].map((side) => (
+        <group
+          key={side}
+          ref={side === -1 ? leftThigh : rightThigh}
+          position={[side * 0.145, 1.12, 0]}
+        >
+          <mesh position={[0, -0.245, 0]}>
+            <cylinderGeometry args={[0.135, 0.1, 0.5, segments]} />
+            {pants}
+          </mesh>
+          <group ref={side === -1 ? leftShin : rightShin} position={[0, -0.49, 0]}>
+            <mesh position={[0, -0.245, 0]}>
+              <cylinderGeometry args={[0.103, 0.073, 0.49, segments]} />
+              {pants}
             </mesh>
-            <mesh castShadow position={[0, -0.8, 0]}>
-              <sphereGeometry args={[0.13, 8, 6]} />
-              <meshPhongMaterial {...skinProps} />
+            <mesh position={[0, -0.51, 0.064]} scale={[0.85, 0.47, 1.55]}>
+              <sphereGeometry args={[0.13, facialSegments, facialRows]} />
+              <meshPhongMaterial color="#3c3936" shininess={12} />
             </mesh>
-          </group>
-        </>
-      )}
-
-      {detailed ? (
-        <>
-          <group ref={leftThigh} position={[-0.22, 0.96, 0]}>
-            <mesh castShadow position={[0, -0.27, 0]}>
-              <boxGeometry args={[0.28, 0.54, 0.32]} />
-              <meshPhongMaterial {...pantsProps} />
-            </mesh>
-            <group ref={leftShin} position={[0, -0.54, 0]}>
-              <mesh castShadow position={[0, -0.22, 0]}>
-                <boxGeometry args={[0.26, 0.42, 0.3]} />
-                <meshPhongMaterial {...pantsProps} />
-              </mesh>
-              <mesh castShadow position={[0, -0.46, 0.13]}>
-                <boxGeometry args={[0.34, 0.18, 0.54]} />
-                <meshPhongMaterial {...shoeProps} />
-              </mesh>
-            </group>
-          </group>
-          <group ref={rightThigh} position={[0.22, 0.96, 0]}>
-            <mesh castShadow position={[0, -0.27, 0]}>
-              <boxGeometry args={[0.28, 0.54, 0.32]} />
-              <meshPhongMaterial {...pantsProps} />
-            </mesh>
-            <group ref={rightShin} position={[0, -0.54, 0]}>
-              <mesh castShadow position={[0, -0.22, 0]}>
-                <boxGeometry args={[0.26, 0.42, 0.3]} />
-                <meshPhongMaterial {...pantsProps} />
-              </mesh>
-              <mesh castShadow position={[0, -0.46, 0.13]}>
-                <boxGeometry args={[0.34, 0.18, 0.54]} />
-                <meshPhongMaterial {...shoeProps} />
-              </mesh>
-            </group>
-          </group>
-        </>
-      ) : (
-        <>
-          <group ref={leftThigh} position={[-0.22, 0.96, 0]}>
-            <mesh castShadow position={[0, -0.46, 0]}>
-              <boxGeometry args={[0.28, 0.9, 0.32]} />
-              <meshPhongMaterial {...pantsProps} />
-            </mesh>
-            <mesh castShadow position={[0, -0.88, 0.13]}>
-              <boxGeometry args={[0.34, 0.18, 0.54]} />
-              <meshPhongMaterial {...shoeProps} />
+            <mesh position={[0, -0.56, 0.064]} scale={[0.85, 0.13, 1.55]}>
+              <sphereGeometry args={[0.13, facialSegments, facialRows]} />
+              <meshPhongMaterial color="#242425" shininess={3} />
             </mesh>
           </group>
-          <group ref={rightThigh} position={[0.22, 0.96, 0]}>
-            <mesh castShadow position={[0, -0.46, 0]}>
-              <boxGeometry args={[0.28, 0.9, 0.32]} />
-              <meshPhongMaterial {...pantsProps} />
-            </mesh>
-            <mesh castShadow position={[0, -0.88, 0.13]}>
-              <boxGeometry args={[0.34, 0.18, 0.54]} />
-              <meshPhongMaterial {...shoeProps} />
-            </mesh>
-          </group>
-        </>
-      )}
+        </group>
+      ))}
     </group>
   );
+}
+
+// Elliptical cross-sections define a continuous silhouette; facial offsets form
+// the cheekbones, eye sockets and jaw instead of stacking balls on the face.
+function profileMesh(
+  rings: readonly (readonly [number, number, number, number])[],
+  segments: number,
+  face = false,
+) {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  rings.forEach(([y, rx, rz, offset], row) => {
+    for (let i = 0; i <= segments; i += 1) {
+      const angle = (i / segments) * Math.PI * 2;
+      const x = Math.sin(angle) * rx;
+      let z = Math.cos(angle) * rz + offset;
+      if (face && z > 0) {
+        const socket =
+          Math.exp(-Math.pow((y - 2.4) / 0.05, 2)) *
+          Math.exp(-Math.pow((Math.abs(x) - 0.085) / 0.04, 2));
+        z -= socket * 0.018;
+      }
+      positions.push(x, y, z);
+      uvs.push(i / segments, row / (rings.length - 1));
+      if (row < rings.length - 1 && i < segments) {
+        const a = row * (segments + 1) + i;
+        indices.push(a, a + 1, a + segments + 1, a + 1, a + segments + 2, a + segments + 1);
+      }
+    }
+  });
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
 }
