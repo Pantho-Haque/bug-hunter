@@ -14,15 +14,15 @@ export interface FollowCameraRigProps {
   readonly resetToken: number;
 }
 
-const HOME_DISTANCE = 4.5;
-const HOME_HEIGHT = 3.2;
+const HOME_DISTANCE = 7;
+const HOME_HEIGHT = 4.5;
 const HOME_LOOK_AHEAD = 1.8;
 const MIN_AZIMUTH = -Math.PI * 0.85;
 const MAX_AZIMUTH = Math.PI * 0.85;
-const MIN_DISTANCE = 2.5;
-const MAX_DISTANCE = 9;
-const MIN_HEIGHT = 1.6;
-const MAX_HEIGHT = 6;
+const MIN_DISTANCE = 3.5;
+const MAX_DISTANCE = 12;
+const MIN_HEIGHT = 2.2;
+const MAX_HEIGHT = 8;
 
 export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: FollowCameraRigProps) {
   const { camera, gl } = useThree();
@@ -40,7 +40,7 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
     const perspective = camera as PerspectiveCamera;
     perspective.fov = 52;
     perspective.near = 0.1;
-    perspective.far = 80;
+    perspective.far = 100;
     perspective.updateProjectionMatrix();
   }, [camera]);
 

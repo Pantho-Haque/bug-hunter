@@ -58,6 +58,7 @@ export function SceneCanvas({
           state={state}
           movementState={movementState}
           presentation={presentation}
+          quality={quality}
           reducedEffects={reducedEffects}
         />
         <FollowCameraRig

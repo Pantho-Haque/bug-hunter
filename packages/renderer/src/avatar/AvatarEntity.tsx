@@ -4,6 +4,7 @@ import type { Group } from 'three';
 
 import type { SimulationStateSchema } from '@codequest/domain';
 
+import { type QualityTier } from '../quality/qualityTier';
 import {
   type AvatarMovementState,
   type AvatarPresentation,
@@ -17,6 +18,7 @@ export interface AvatarEntityProps {
   readonly presentation: AvatarPresentation;
   readonly reducedEffects: boolean;
   readonly stepDurationMs?: number;
+  readonly quality?: QualityTier;
 }
 
 interface TweenState {
@@ -34,6 +36,7 @@ export function AvatarEntity({
   presentation,
   reducedEffects,
   stepDurationMs = 360,
+  quality,
 }: AvatarEntityProps) {
   const groupRef = useRef<Group | null>(null);
   const tweenRef = useRef<TweenState | null>(null);
@@ -90,6 +93,7 @@ export function AvatarEntity({
         isMoving={tweenRef.current !== null || movementState === 'walking'}
         movementState={movementState}
         presentation={presentation}
+        quality={quality}
         reducedEffects={reducedEffects}
       />
     </group>
