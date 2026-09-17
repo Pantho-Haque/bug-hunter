@@ -8,6 +8,10 @@ import '@fontsource/fira-code/latin-500.css';
 import { javascript } from '@codemirror/lang-javascript';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+// minimalSetup carries history + the default/history keymaps, so undo, redo,
+// and Enter behave the way a child expects. basicSetup would also add gutters
+// and a second autocompletion source that fights the mission command list.
+import { minimalSetup } from 'codemirror';
 import { useEffect, useMemo, useRef } from 'react';
 
 interface MissionCodeEditorProps {
@@ -90,7 +94,12 @@ export function MissionCodeEditor({ source, commands, onChange, label }: Mission
       state: EditorState.create({
         doc: source,
         extensions: [
+          minimalSetup,
           javascript(),
+          // The accessible name has to sit on CodeMirror's contenteditable,
+          // which is the element carrying role="textbox"; on the wrapper div it
+          // is both unnamed and a prohibited attribute.
+          EditorView.contentAttributes.of({ 'aria-label': label }),
           autocompletion({ activateOnTyping: true, override: [completeMissionCode] }),
           EditorView.lineWrapping,
           draculaTheme,
@@ -106,7 +115,7 @@ export function MissionCodeEditor({ source, commands, onChange, label }: Mission
       viewRef.current = null;
       view.destroy();
     };
-  }, [completions]);
+  }, [completions, label]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -114,5 +123,5 @@ export function MissionCodeEditor({ source, commands, onChange, label }: Mission
     view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
   }, [source]);
 
-  return <div aria-label={label} className="mission-code-editor" ref={hostRef} />;
+  return <div className="mission-code-editor" ref={hostRef} />;
 }

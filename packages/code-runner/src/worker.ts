@@ -14,6 +14,7 @@ import type {
   WorkerToHostSchema,
 } from './protocol';
 import { parseHostToWorker } from './protocol';
+import { classifyEvaluationFault } from './fault-mapping';
 import { instrumentCommandSourceLines } from './source-mapping';
 
 const scope = self as DedicatedWorkerGlobalScope;
@@ -23,7 +24,12 @@ const send = (message: WorkerToHostSchema) => {
 };
 
 const quickJsModulePromise = newQuickJSWASMModuleFromVariant(RELEASE_SYNC).then(
-  (module) => ({ module }),
+  (module) => {
+    // Booting QuickJS costs seconds on a busy page. The host warms the worker
+    // when a mission opens and waits for this before enabling Run.
+    send({ type: 'ready' });
+    return { module };
+  },
   (error: unknown) => ({
     error: {
       code: 'blockedApi' as const,
@@ -34,26 +40,11 @@ const quickJsModulePromise = newQuickJSWASMModuleFromVariant(RELEASE_SYNC).then(
 
 interface RunContext {
   readonly runId: string;
-  readonly startedAt: number;
+  /** Reset to the moment the learner's code starts, not when the run arrived. */
+  startedAt: number;
   readonly deadlineMs: number;
   cancelled: boolean;
 }
-
-const classifyEvaluationFault = (
-  message: string,
-  context: RunContext,
-  interruptChecks: number,
-  maxInstructions: number,
-): Extract<WorkerToHostSchema, { type: 'runFault' }>['code'] => {
-  if (context.cancelled) return 'cancelled';
-  if (performance.now() - context.startedAt > context.deadlineMs || interruptChecks >= maxInstructions) {
-    return 'timeout';
-  }
-  if (/command budget exceeded/i.test(message)) return 'commandLimit';
-  if (/out of memory|stack/i.test(message)) return 'memory';
-  if (/referenceerror/i.test(message)) return 'blockedApi';
-  return 'syntax';
-};
 
 const activeRuns = new Map<string, RunContext>();
 
@@ -151,11 +142,20 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
       message.source,
       capabilities.allowedCommandKinds,
     );
+
+    // The deadline bounds the learner's code, not the runner's start-up. Booting
+    // QuickJS and building the context can take seconds on a low-end device or a
+    // busy page; counting that against the budget interrupted every run with
+    // "your code took too long" before the first instruction ever executed.
+    context.startedAt = performance.now();
     const result = jsContext.evalCode(instrumentedSource, 'learner-code.js');
     if (result.error) {
       const dumped = jsContext.dump(result.error) as { message?: string; name?: string } | string;
       result.error.dispose();
-      const errorMessage = typeof dumped === 'string' ? dumped : dumped.message ?? 'syntax error';
+      const errorMessage =
+        typeof dumped === 'string'
+          ? dumped
+          : [dumped.name, dumped.message ?? 'syntax error'].filter(Boolean).join(': ');
       send({
         type: 'runFault',
         runId: message.runId,
@@ -208,6 +208,29 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
   }
 };
 
+/**
+ * A run that dies inside the worker used to leave the host waiting forever,
+ * which shows a child an endless "Running…". Every failure path now ends in a
+ * runFault for the active run.
+ */
+const reportWorkerFailure = (reason: string) => {
+  for (const runId of activeRuns.keys()) {
+    send({ type: 'runFault', runId, code: 'timeout', reason });
+    activeRuns.delete(runId);
+  }
+};
+
+scope.addEventListener('error', (event: ErrorEvent) => {
+  reportWorkerFailure(event.message || 'runner worker error');
+});
+
+scope.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+  const reason: unknown = event.reason;
+  reportWorkerFailure(
+    reason instanceof Error ? reason.message : String(reason ?? 'runner worker rejection'),
+  );
+});
+
 scope.addEventListener('message', async (event: MessageEvent<unknown>) => {
   let parsed: HostToWorkerSchema;
   try {
@@ -216,7 +239,11 @@ scope.addEventListener('message', async (event: MessageEvent<unknown>) => {
     return;
   }
   if (parsed.type === 'run') {
-    await executeRun(parsed);
+    try {
+      await executeRun(parsed);
+    } catch (error) {
+      reportWorkerFailure(error instanceof Error ? error.message : 'runner failed to start');
+    }
     return;
   }
   if (parsed.type === 'cancel') {

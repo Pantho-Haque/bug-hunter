@@ -64,7 +64,7 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** M01 requires no level-specific UI code.
 
-**Status:** Partial. Domain schemas, persistence schemas, the content registry, M01 fixture, handbook, and contract report are present. Unknown state invariants now fail closed. The exit gate remains open: validation coverage does not yet demonstrate every promised malformed-import, unknown-reward, and incompatible-version case, and M01 still needs a complete production vertical slice to prove no level-specific UI is required.
+**Status:** Partial. Domain schemas, persistence schemas, the content registry, M01 fixture, handbook, and contract report are present. Unknown state invariants now fail closed. Validation coverage now demonstrates all seven promised cases with a distinct issue code each: `invalid-id`, `duplicate-object-id`, `unreachable-goal`, `missing-hints`, `missing-example`, `unknown-reward-asset`, `incompatible-api-version`, and `malformed-import`. Three were closed this round — `malformed-import` was declared but never emitted, so garbage input threw a `TypeError` instead of failing validation; `unknown-reward-asset` only fired when a caller passed `knownAssetIds`, which no caller does, so reward assets are now checked against the `asset.<group>.<name>` convention every shipped mission already follows; and `missing-example` was missing entirely, letting a mission ship with no worked example. Goal reachability is now gate-aware, matching `isBlockerOpen` in the simulation: a blocker carrying `unlockedByFlag` is a gate a learner can open, so it can no longer make a goal look unreachable. A parameterized test runs all six shipped missions through validation and asserts no issues, so drift fails the suite in either direction. The remaining exit item is the level-specific-UI proof, which Phase 8 now satisfies in practice: `MissionPreview` renders any registry mission from data alone and no mission has bespoke UI.
 
 ## Phase 5 — Deterministic simulation engine
 
@@ -78,7 +78,7 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** headless M01 has byte-for-byte equivalent trace and end state on replay.
 
-**Status:** Partial. `packages/simulation` ships `createSimulation`, `reduceCommand`, `replayCommands`, `createSnapshotStore`, and `validateMissionObjectives`; M01 reference traces replay deterministically. The required M02–M06 reference traces and full timing-independence evidence are not yet present, so this phase is a strong M01 baseline rather than a closed simulation phase.
+**Status:** Partial. `packages/simulation` ships `createSimulation`, `reduceCommand`, `replayCommands`, `createSnapshotStore`, and `validateMissionObjectives`; M01 reference traces replay deterministically. Blockers now carry an optional `unlockedByFlag`, so a gate opens once the matching interactable is used; this is the only simulation rule added after Phase 5 and it is covered by a reducer test. M01–M06 canonical routes replay deterministically to their objectives in `packages/test-fixtures`. Full timing-independence evidence is still missing, so this phase is a strong Meadow baseline rather than a closed simulation phase.
 
 ## Phase 6 — Secure player-code runner
 
@@ -92,7 +92,7 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** hostile fixtures cannot freeze UI, access browser capability, mutate simulation directly, or leak between runs.
 
-**Status:** In implementation. `packages/code-runner` has an isolated QuickJS worker, fail-closed capability resolution, bounded commands, cancellation, protocol validation, fault mapping, immutable host-side command queue, and authored source-line mapping. Host `advance()` and paused `step()` release one command only at a real host boundary; the mission player releases a later command only after the visible prior command completes. The remaining security gate is a browser-worker hostile-code integration harness; synthetic coordinator tests are not sufficient to claim that transport test is complete.
+**Status:** In implementation. `packages/code-runner` has an isolated QuickJS worker, fail-closed capability resolution, bounded commands, cancellation, protocol validation, fault mapping, immutable host-side command queue, and authored source-line mapping. Host `advance()` and paused `step()` release one command only at a real host boundary; the mission player releases a later command only after the visible prior command completes. The browser-worker hostile-code gate is now closed by `pnpm hostile-check` (`scripts/hostile-code-harness.mjs`), which drives the **built** worker bundle in a real browser over the real postMessage channel and asserts containment of 12 hostile fixtures plus recovery afterwards: infinite loop, unbounded recursion, command flood, allocation growth, syntax error, a command the mission has not unlocked, the blocked globals `fetch`, `XMLHttpRequest` and `importScripts`, and escape attempts against the DOM, local storage, and the host message channel via a forged `postMessage`. All 13 checks pass and the harness runs in CI, so a regression fails the build. Results: [E-08](evidence/phase-6/E-08-browser-worker-hostile-report.md).
 
 ## Phase 7 — 3D greybox and camera/animation contract
 
@@ -106,7 +106,7 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** avatar, minimap, trace, line highlight, and simulation agree on current command; quality tier never changes outcome.
 
-**Status:** Partial. `packages/renderer` provides the scene adapter, current low-poly boy/girl prototypes, camera modes, mission-object projection, semantic minimap, preview controls, quality tiers, and event-to-animation contract. The normal starter route now uses the shared renderer only as a non-executing M01 preview; learner code is never regex-parsed or directly executed there. Quality configuration is now applied to fog, shadows, and goal lights. The approved target adds Strategic View as default, Preview View, a Settings modal, mid-poly level-of-detail assets, and continuous-looking streamed environments. The remaining gate work is real camera-line occlusion, device/performance evidence, a production-size bundle budget, a real editor line mapping from the runner, and the newly approved renderer scope. Do not treat the Phase 7 spike as the Phase 8 vertical slice.
+**Status:** Partial. `packages/renderer` provides the scene adapter, current low-poly boy/girl prototypes, camera modes, mission-object projection, semantic minimap, preview controls, quality tiers, and event-to-animation contract. The normal starter route now uses the shared renderer only as a non-executing M01 preview; learner code is never regex-parsed or directly executed there. Quality configuration is now applied to fog, shadows, and goal lights. The approved target adds Strategic View as default, Preview View, a Settings modal, mid-poly level-of-detail assets, and continuous-looking streamed environments. `pnpm perf-check` (`scripts/performance-harness.mjs`) now produces the performance dashboard and bundle budget as a committed report ([E-09](evidence/phase-7/E-09-performance-report.md)): frame profile, p95 frame time, JS heap, time-to-editor and time-to-runner-ready per quality tier, and the gzipped size of every precached asset. It also enforces the gate rule that a quality tier must never change the outcome, failing if any tier cannot solve the mission. The report describes the machine that ran it, so the target-device evidence is now one command away from whoever holds the low-end laptop and tablet. The remaining gate work is real camera-line occlusion, that target-device run, and the newly approved renderer scope. Do not treat the Phase 7 spike as the Phase 8 vertical slice.
 
 ## Phase 8 — Learning/editor vertical slice
 
@@ -120,6 +120,8 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** internal usability review shows a player can explain `moveForward()`.
 
+**Status:** In implementation. The production mission route (`apps/web/src/starter`) now runs learner code only through the sandboxed QuickJS worker and reports a real result: Run/Pause/Step/Reset Scene against the host-controlled command queue, Reset Code kept distinct, CodeMirror with history-backed undo/redo and mission-command completion, progressive hints from the mission package, a per-command trace with authored line numbers, child-facing fault copy, the reflection question on success, and local drafts restored on reload. Verified end to end in Chrome: short route → "Not there yet", full route → "Goal reached!", blocked global → "That helper is locked for this level." The remaining gate work is the first-time usability script with children, touch and keyboard-only passes, runner-reported source lines on evaluation faults, and Reset Scene during an in-flight animation on a low-end device.
+
 ## Phase 9 — Meadow of Moves MVP
 
 **Goal:** deliver M01–M06 as one polished offline zone.
@@ -132,6 +134,20 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 
 **Do not proceed until:** child playtests meet first-mission completion, independent-next-action, and error-recovery targets with no critical accessibility issue.
 
+**Status:** In implementation. The Meadow zone ships all six mission packages (M01–M06) in `packages/content`, each one replay-tested against the simulation so a layout change that makes a mission unsolvable fails the build. The map reads the mission registry rather than hardcoded React copy, unlocks each mission from its predecessor's completion, and stores progress and per-mission code drafts locally. Verified end to end in Chrome: a cleared profile plays M01–M06 in order, every mission reports "Goal reached!", locked rows open as their prerequisite completes, and progress survives a reload. Local data now runs through `packages/persistence`: settings, progress, and per-mission code drafts are schema-validated on every read, a damaged record is preserved as `<key>.corrupt` and replaced by defaults rather than blocking start-up, a full quota surfaces as a plain-language notice, and Settings can export a backup file and restore one (a malformed file is refused without touching the existing save). Verified in Chrome: play M01 → export → clear storage → import restores progress and drafts; a junk file changes nothing; a corrupted progress blob still boots. Onboarding, rewards, the collection preview, service-worker caching and the offline/update states are in. A generated service worker precaches every built asset (the file list comes from the bundle, so hashed names can never go stale); a new build surfaces an "A new version is ready" banner and only swaps when the player accepts.
+
+**Production-build bugs found and fixed during this phase.** The app had never been exercised against a production build, only the dev server, and three defects were hiding there:
+
+1. *Every run failed.* The runner's wall-clock deadline started when the worker received the run message, so booting QuickJS and building the context consumed the whole 4s budget and the interrupt handler aborted the learner's code before its first instruction. The deadline now starts immediately before `evalCode`, and the host budget is generous because `maxInstructions` — an interrupt count, unaffected by how much CPU the worker gets — is the real guard against runaway loops.
+2. *A failed runner hung forever.* A worker that died left the child on "Running…" indefinitely. The worker now converts every failure path into a `runFault`, and the host has a watchdog that retires a silent runner, replaces it, and reports a fault.
+3. *QuickJS booted too late.* Starting the worker on the first Run meant a 5–12s wait on a page still building the 3D scene. The runner is now warmed when a mission opens and announces itself with the protocol's `ready` message; Run stays disabled and labelled "Getting ready…" until then.
+
+The service worker also registered only from a `load` listener that had usually already fired, and reloaded the page on first install; both are fixed.
+
+**Evidence (production build, Chrome).** M01–M06 all played to "Goal reached!" in order with progression and rewards; hostile fixtures (infinite loop, runaway commands, blocked global, deep recursion) are all stopped with child-facing copy and a live UI; the game loads and plays a full mission with the network cut; export → wipe → import restores progress and drafts, a malformed file is refused, a corrupted save still boots; the update banner appears after a new build and applies on request; axe-core reports zero WCAG 2.1 A/AA violations on the onboarding, map, and mission screens.
+
+Still open for the phase gate: first-zone art and audio, target-device performance measurement, and the child playtests themselves.
+
 ## Phase 10 — Playtest, revise, and lock conventions
 
 **Goal:** stop unvalidated Meadow patterns from multiplying into 24 more levels.
@@ -141,6 +157,8 @@ This is the authoritative delivery sequence for the [feature specification](FEAT
 **Deliverables:** playtest report, prioritized fixes, locked authoring conventions, updated decisions.
 
 **Do not proceed until:** repeated critical confusion is fixed or explicitly accepted with evidence. Bulk content production is prohibited before this gate.
+
+**Status:** Blocked on sessions, not on engineering. The entry requirements are now in place: an end-to-end Meadow build that runs from a production bundle (see Phase 9), plus the [participant consent process](phase-10/PARTICIPANT_CONSENT_PROCESS.md) and the [playtest protocol](phase-10/PLAYTEST_PROTOCOL.md), which carries the session shape, moderator script, the seven observation questions, the observation sheet, the issue-classification rubric, and the report and exit-gate checklists. Both reuse the Phase 1 measures and assistance ladder rather than restating them. What remains is the part that cannot be produced from a keyboard: a privacy or legal reviewer must approve the consent process, and 5 to 8 moderated sessions with children aged 8 to 12 must actually be run. No session data may be simulated, estimated, or inferred — every downstream convention this phase locks depends on it being real.
 
 ## Phase 11 — Scalable content production
 

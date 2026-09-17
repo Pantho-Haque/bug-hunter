@@ -54,6 +54,13 @@ export const occupiedCellsByKind = (
   return map;
 };
 
+/** A gate blocker stops counting as solid once its unlock flag is set. */
+export const isBlockerOpen = (
+  blocker: Extract<MissionObjectSchema, { kind: 'blocker' }>,
+  state: SimulationState,
+): boolean =>
+  blocker.unlockedByFlag !== undefined && state.flags[blocker.unlockedByFlag] === true;
+
 export const attemptMove = (
   state: SimulationState,
   mission: MissionPackageSchema,
@@ -65,7 +72,7 @@ export const attemptMove = (
   };
   const occupied = occupiedCellsByKind(mission);
   const obstacle = occupied.get(cellKey(target));
-  if (obstacle && obstacle.kind === 'blocker') {
+  if (obstacle && obstacle.kind === 'blocker' && !isBlockerOpen(obstacle, state)) {
     return {
       nextAvatar: state.avatar,
       blocked: true,

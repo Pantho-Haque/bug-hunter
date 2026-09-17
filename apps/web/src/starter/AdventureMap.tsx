@@ -1,8 +1,47 @@
 import { useState } from 'react';
 
+import { contentRegistry } from '@codequest/content';
+import { zoneId as toZoneId } from '@codequest/domain';
+
 interface AdventureMapProps {
-  onPlay: () => void;
+  onPlay: (levelId: string) => void;
+  completedLevelIds: readonly string[];
+  unlockedRewardIds: readonly string[];
 }
+
+interface MissionRow {
+  readonly title: string;
+  readonly task: string;
+  readonly levelId: string | undefined;
+  readonly state: 'done' | 'ready' | 'locked' | 'planned';
+}
+
+/**
+ * Meadow rows come from the mission registry, so the map can never promise a
+ * mission the content package does not actually ship. Later zones are still
+ * authored prose because their mission packages do not exist yet.
+ */
+const meadowRows = (completedLevelIds: readonly string[]): MissionRow[] =>
+  contentRegistry.listMissionsByZone(toZoneId('meadow-of-moves')).map((mission) => {
+    const id = mission.identity.levelId;
+    const unlocked = mission.identity.prerequisiteLevelIds.every((prerequisite) =>
+      completedLevelIds.includes(prerequisite),
+    );
+    return {
+      title: mission.identity.title,
+      task: mission.briefing.goal,
+      levelId: id,
+      state: completedLevelIds.includes(id) ? 'done' : unlocked ? 'ready' : 'locked',
+    };
+  });
+
+const plannedRows = (zone: Zone): MissionRow[] =>
+  zone.missions.map((mission) => ({
+    title: mission.title,
+    task: mission.task,
+    levelId: undefined,
+    state: 'planned' as const,
+  }));
 
 interface Zone {
   concept: string;
@@ -17,14 +56,8 @@ const zones: Zone[] = [
   {
     concept: 'Sequences · turns · interactions',
     id: 'meadow',
-    missions: [
-      { task: 'Walk three tiles to the beacon.', title: 'First Steps' },
-      { task: 'Turn onto an L-shaped garden path.', title: 'Turn Toward Light' },
-      { task: 'Reach and collect a glowing seed pod.', title: 'Treasure at Your Feet' },
-      { task: 'Pull a lever before crossing the gate.', title: 'The Gate Lever' },
-      { task: 'Choose a safe route and gather sparks.', title: 'Short Safe Route' },
-      { task: 'Wake two sprites in the correct order.', title: 'Meadow Checkpoint' },
-    ],
+    // Rendered from the content registry; see meadowRows().
+    missions: [],
     name: 'Meadow of Moves',
     number: 1,
     story: 'Wake the street beacons and learn how each command changes Nova’s route.',
@@ -91,9 +124,14 @@ const zones: Zone[] = [
   },
 ];
 
-export function AdventureMap({ onPlay }: AdventureMapProps) {
+export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: AdventureMapProps) {
   const [selectedZoneId, setSelectedZoneId] = useState('meadow');
   const selectedZone = zones.find((zone) => zone.id === selectedZoneId) ?? zones[0];
+  const rows = selectedZone.id === 'meadow' ? meadowRows(completedLevelIds) : plannedRows(selectedZone);
+  const nextMission = meadowRows(completedLevelIds).find((row) => row.state === 'ready');
+  const collection = contentRegistry
+    .listMissionsByZone(toZoneId('meadow-of-moves'))
+    .flatMap((mission) => mission.rewards);
 
   return (
     <section className="world-map-screen" aria-labelledby="map-title">
@@ -212,28 +250,67 @@ export function AdventureMap({ onPlay }: AdventureMapProps) {
           <p>{selectedZone.story}</p>
           <div className="concept-ribbon"><span>JavaScript focus</span><strong>{selectedZone.concept}</strong></div>
           <ol className="mission-list">
-            {selectedZone.missions.map((mission, index) => (
-              <li className={selectedZone.id === 'meadow' && index === 0 ? 'mission-list__ready' : ''} key={mission.title}>
-                {selectedZone.id === 'meadow' && index === 0 ? (
-                  <button aria-label={`Play Mission 01: ${mission.title}`} className="mission-list__play" onClick={onPlay} type="button">
-                    <span>{String((selectedZone.number - 1) * 6 + index + 1).padStart(2, '0')}</span>
-                    <div><strong>{mission.title}</strong><span className="mission-task">{mission.task}</span></div>
-                    <small>Play <span aria-hidden="true">→</span></small>
-                  </button>
-                ) : (
-                  <div className="mission-list__planned">
-                    <span>{String((selectedZone.number - 1) * 6 + index + 1).padStart(2, '0')}</span>
-                    <div><strong>{mission.title}</strong><span className="mission-task">{mission.task}</span></div>
-                    <small>Planned</small>
-                  </div>
-                )}
-              </li>
-            ))}
+            {rows.map((mission, index) => {
+              const number = String((selectedZone.number - 1) * 6 + index + 1).padStart(2, '0');
+              const playable = mission.levelId !== undefined && mission.state !== 'locked';
+              return (
+                <li className={mission.state === 'ready' ? 'mission-list__ready' : ''} key={mission.title}>
+                  {playable && mission.levelId ? (
+                    <button
+                      aria-label={`Play Mission ${number}: ${mission.title}`}
+                      className="mission-list__play"
+                      onClick={() => onPlay(mission.levelId as string)}
+                      type="button"
+                    >
+                      <span>{number}</span>
+                      <div><strong>{mission.title}</strong><span className="mission-task">{mission.task}</span></div>
+                      <small>{mission.state === 'done' ? 'Replay ✓' : 'Play'} <span aria-hidden="true">→</span></small>
+                    </button>
+                  ) : (
+                    <div className="mission-list__planned">
+                      <span>{number}</span>
+                      <div><strong>{mission.title}</strong><span className="mission-task">{mission.task}</span></div>
+                      <small>{mission.state === 'locked' ? 'Locked' : 'Planned'}</small>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ol>
-          <button className="primary-button map-play-button" onClick={onPlay} type="button">
-            Play Mission 01 · First Steps <span aria-hidden="true">→</span>
-          </button>
-          {selectedZone.id !== 'meadow' && <p className="map-note">This preliminary map previews the full journey. Mission 01 is the current playable 3D starter.</p>}
+          {nextMission?.levelId ? (
+            <button
+              className="primary-button map-play-button"
+              onClick={() => onPlay(nextMission.levelId as string)}
+              type="button"
+            >
+              Play {nextMission.title} <span aria-hidden="true">→</span>
+            </button>
+          ) : (
+            <p className="map-note">Every Meadow mission is complete. Replay any of them from the list above.</p>
+          )}
+          {selectedZone.id === 'meadow' ? (
+            <section className="collection" aria-labelledby="collection-title">
+              <h3 id="collection-title">
+                Your collection · {unlockedRewardIds.length} of {collection.length}
+              </h3>
+              <ul className="collection__list">
+                {collection.map((reward) => {
+                  const earned = unlockedRewardIds.includes(reward.rewardId);
+                  return (
+                    <li
+                      className={earned ? 'collection__item collection__item--earned' : 'collection__item'}
+                      key={reward.rewardId}
+                    >
+                      <span aria-hidden="true">{earned ? '★' : '☆'}</span>
+                      <strong>{earned ? reward.label : 'Not found yet'}</strong>
+                      <small>{earned ? 'Earned' : 'Finish the mission to unlock'}</small>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
+          {selectedZone.id !== 'meadow' && <p className="map-note">This preliminary map previews the full journey. Meadow of Moves is the playable zone today.</p>}
         </aside>
       </div>
     </section>

@@ -12,6 +12,7 @@ export type ValidationIssueCode =
   | 'duplicate-hint-id'
   | 'unreachable-goal'
   | 'missing-hints'
+  | 'missing-example'
   | 'unknown-reward-asset'
   | 'incompatible-api-version'
   | 'malformed-import'
@@ -25,6 +26,9 @@ export interface ValidationResult {
 
 const VALID_ID = /^[a-z0-9][a-z0-9-]*$/;
 
+/** Every shipped reward points at an `asset.<group>.<name>` id. */
+const VALID_ASSET_ID = /^asset\.[a-z0-9-]+\.[a-z0-9-]+$/;
+
 const cellKey = (cell: { readonly cellX: number; readonly cellZ: number }) =>
   `${cell.cellX},${cell.cellZ}`;
 
@@ -33,7 +37,9 @@ const occupiedCells = (
 ): Set<string> => {
   const set = new Set<string>();
   for (const obj of mission.objects) {
-    if (obj.kind === 'blocker') {
+    // A blocker with an unlock flag is a gate the learner can open, so it never
+    // makes a goal unreachable. Same rule as isBlockerOpen in @codequest/simulation.
+    if (obj.kind === 'blocker' && obj.unlockedByFlag === undefined) {
       for (const cell of obj.occupiedCells) {
         set.add(cellKey(cell));
       }
@@ -55,10 +61,41 @@ const adjacentFreeCells = (
   return offsets.filter((c) => !blocked.has(cellKey(c)));
 };
 
+/** Coarse shape check so an imported blob can be rejected instead of throwing. */
+const isMissionShaped = (value: unknown): value is MissionPackageSchema => {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Partial<MissionPackageSchema>;
+  return (
+    typeof candidate.identity === 'object' &&
+    candidate.identity !== null &&
+    typeof candidate.starterCode === 'string' &&
+    typeof candidate.briefing === 'object' &&
+    candidate.briefing !== null &&
+    Array.isArray(candidate.briefing.controls) &&
+    Array.isArray(candidate.objects) &&
+    Array.isArray(candidate.allowedApi) &&
+    Array.isArray(candidate.hints) &&
+    Array.isArray(candidate.rewards)
+  );
+};
+
 export const validateMissionPackage = (
-  mission: MissionPackageSchema,
+  mission: unknown,
   options: { readonly knownAssetIds?: ReadonlySet<string> } = {},
 ): ValidationResult => {
+  if (!isMissionShaped(mission)) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'malformed-import',
+          path: '',
+          message: 'value is not shaped like a mission package',
+        },
+      ],
+    };
+  }
+
   const knownAssetsProvided = options.knownAssetIds !== undefined;
   const knownAssets = options.knownAssetIds ?? new Set<string>();
   const issues: ValidationIssue[] = [];
@@ -128,7 +165,22 @@ export const validateMissionPackage = (
     });
   }
 
+  if ((mission.analogousExample?.source ?? '').trim().length === 0) {
+    issues.push({
+      code: 'missing-example',
+      path: 'analogousExample',
+      message: 'mission must ship one analogous worked example',
+    });
+  }
+
   for (const reward of mission.rewards) {
+    if (!VALID_ASSET_ID.test(reward.assetId)) {
+      issues.push({
+        code: 'unknown-reward-asset',
+        path: `rewards[${reward.rewardId}]`,
+        message: `reward asset ${reward.assetId} must match ${VALID_ASSET_ID.toString()}`,
+      });
+    }
     if (knownAssetsProvided && !knownAssets.has(reward.assetId)) {
       issues.push({
         code: 'unknown-reward-asset',

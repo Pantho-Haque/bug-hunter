@@ -75,10 +75,11 @@ From the repository root:
 4. Accessibility has an equivalent surface. Canvas visuals have semantic HTML
    or SVG equivalents.
 5. Package dependencies point inward. `domain` has no browser imports.
-6. Production code never executes learner source or calls `moveForward()`
-   directly. Learner-code execution belongs only in a development-only spike
-   lab gated by `import.meta.env.DEV` until the Phase 8 runner integration is
-   complete.
+6. Production code never executes learner source in the page. Learner code
+   runs only inside the sandboxed QuickJS worker from `packages/code-runner`,
+   which hands the host bounded command requests; the host releases them into
+   the simulation one animation boundary at a time. No regex-parsing of
+   learner source, no direct `moveForward()` calls from React.
 
 ## Child safety
 

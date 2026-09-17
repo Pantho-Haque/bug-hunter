@@ -307,6 +307,12 @@ h2 { font-size: 1.25rem; margin-bottom: 0; }
 
 .mission-tools { display: flex; flex-wrap: wrap; gap: 7px; }
 
+.mission-tools__new { border: 1px solid #ffe166; color: #ffe166 !important; }
+
+.mission-tools__new { box-shadow: 0 0 0 1px #ffe166; }
+
+.mission-list__done small { color: #6ee7a8; }
+
 .code-workspace { display: grid; flex: 1 0 420px; gap: 9px; grid-template-rows: auto minmax(180px, 1fr) auto; min-block-size: 420px; padding: 14px 0 24px; }
 
 .code-workspace__header { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; }
@@ -347,9 +353,83 @@ textarea { background: #07152f; border: 1px solid #5178ad; border-radius: 12px; 
 
 .run-controls { flex-wrap: wrap; justify-content: flex-end; }
 
+.run-controls .secondary-button { font-size: .78rem; padding: 9px 12px; }
+
+.run-outcome { border-inline-start: 4px solid #78a8ec; border-radius: 0 10px 10px 0; color: #eaf3ff; display: grid; font-size: .82rem; gap: 4px; line-height: 1.4; margin-inline: 14px; padding: 10px 12px; }
+
+.run-outcome p { margin: 0; }
+
+.run-outcome__headline { font-size: .95rem; font-weight: 800; }
+
+.run-outcome--success { background: #12452f; border-inline-start-color: #6ee7a8; }
+
+.run-outcome--incomplete { background: #173966; border-inline-start-color: #ffe166; }
+
+.run-outcome--fault { background: #4a1f2c; border-inline-start-color: #ff9ab0; }
+
+.run-outcome__reflection { color: #bdf0d6; font-style: italic; }
+
+.mission-hints { display: grid; gap: 8px; justify-items: start; margin-inline: 14px; }
+
+.mission-hints__list { color: #e5f0fd; display: grid; font-size: .8rem; gap: 8px; line-height: 1.4; margin: 0; padding-inline-start: 20px; }
+
+.mission-hints__list p { margin: 0; }
+
+.mission-hints__list pre { background: #282a36; border-radius: 8px; margin: 5px 0 0; overflow-x: auto; padding: 8px 10px; }
+
+.mission-hints__list code { color: #8be9fd; font-family: "Fira Code", ui-monospace, monospace; font-size: .76rem; }
+
+.mission-trace { color: #dceaff; font-size: .78rem; margin-inline: 14px; }
+
+.mission-trace summary { color: #ffe166; cursor: pointer; font-weight: 800; }
+
+.mission-trace__list { display: grid; gap: 3px; margin: 7px 0 0; padding-inline-start: 20px; }
+
 .quiet-mode .scene-shell canvas { filter: saturate(.72); }
 
 .sr-only { clip: rect(0, 0, 0, 0); height: 1px; margin: -1px; overflow: hidden; position: absolute; width: 1px; }
+
+.app-notice { align-items: center; background: #173966; border-block-end: 1px solid #78a8ec; color: #eaf3ff; display: flex; font-size: .82rem; gap: 12px; justify-content: center; margin: 0; padding: 9px 14px; }
+
+.app-notice button { background: none; border: 1px solid #78a8ec; border-radius: 8px; color: #eaf3ff; font-size: .74rem; font-weight: 800; padding: 4px 9px; }
+
+.settings-file-button { cursor: pointer; display: inline-flex; }
+
+.settings-file-button input { height: 1px; opacity: 0; position: absolute; width: 1px; }
+
+.settings-file-button:focus-within { outline: 2px solid #ffe166; outline-offset: 2px; }
+
+.app-notice--update { background: #3d2f12; border-block-end-color: #ffe166; }
+
+.onboarding-dialog__lead { color: #d0e1f8; font-size: .88rem; line-height: 1.5; margin: 0 0 14px; }
+
+.onboarding-steps { display: grid; gap: 12px; list-style: none; margin: 0 0 18px; padding: 0; }
+
+.onboarding-steps li { align-items: start; display: flex; gap: 12px; }
+
+.onboarding-steps li > span { background: #ffe166; border-radius: 999px; color: #15233f; flex: 0 0 auto; font-weight: 800; height: 26px; line-height: 26px; text-align: center; width: 26px; }
+
+.onboarding-steps strong { color: #eaf3ff; display: block; font-size: .94rem; }
+
+.onboarding-steps p { color: #b9d1ef; font-size: .82rem; line-height: 1.45; margin: 3px 0 0; }
+
+.onboarding-dialog__actions { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; }
+
+.run-outcome__reward { color: #ffe166; font-weight: 800; }
+
+.collection { margin-top: 14px; }
+
+.collection h3 { color: #ffe166; font-size: .86rem; margin: 0 0 8px; }
+
+.collection__list { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); list-style: none; margin: 0; padding: 0; }
+
+.collection__item { background: #10264c; border: 1px solid #315785; border-radius: 10px; color: #b9d1ef; display: grid; font-size: .74rem; gap: 1px; padding: 7px 9px; }
+
+.collection__item strong { color: #d7e8ff; font-size: .78rem; }
+
+.collection__item--earned { border-color: #ffe166; color: #eaf3ff; }
+
+.collection__item--earned strong { color: #ffe166; }
 
 @media (max-width: 850px) {
   .map-layout, .game-screen { grid-template-columns: 1fr; }

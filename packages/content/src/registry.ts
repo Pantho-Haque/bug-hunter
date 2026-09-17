@@ -6,6 +6,11 @@ import type {
 import { levelId, missionPackageSchema } from '@codequest/domain';
 
 import { m01FirstSteps } from './missions/m01-first-steps';
+import { m02TurnTowardLight } from './missions/m02-turn-toward-light';
+import { m03TreasureAtYourFeet } from './missions/m03-treasure-at-your-feet';
+import { m04TheGateLever } from './missions/m04-the-gate-lever';
+import { m05ShortSafeRoute } from './missions/m05-short-safe-route';
+import { m06MeadowCheckpoint } from './missions/m06-meadow-checkpoint';
 import { knownZones } from './zones';
 
 export { knownZones };
@@ -18,7 +23,14 @@ export interface ContentRegistry {
   listMissionsByZone(zoneId: ZoneId): readonly MissionPackageSchema[];
 }
 
-const seedMissions: readonly MissionPackageSchema[] = [m01FirstSteps];
+const seedMissions: readonly MissionPackageSchema[] = [
+  m01FirstSteps,
+  m02TurnTowardLight,
+  m03TreasureAtYourFeet,
+  m04TheGateLever,
+  m05ShortSafeRoute,
+  m06MeadowCheckpoint,
+];
 
 const seedMissionMap: ReadonlyMap<LevelId, MissionPackageSchema> = (() => {
   const map = new Map<LevelId, MissionPackageSchema>();

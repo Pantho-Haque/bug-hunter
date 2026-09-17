@@ -1,1 +1,1 @@
-export const editorPackageMarker = '@codequest/editor';
+export * from './runOutcome';

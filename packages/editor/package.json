@@ -17,7 +17,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b",
-    "test": "echo \"@codequest/editor: no tests yet\"",
+    "test": "vitest run",
     "lint": "eslint src"
   },
   "dependencies": {

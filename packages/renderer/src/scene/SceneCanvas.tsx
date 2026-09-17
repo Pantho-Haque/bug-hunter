@@ -45,7 +45,10 @@ export function SceneCanvas({
   void lifecycle;
 
   return (
-    <div className={className} aria-label={ariaLabel}>
+    // role="img" makes the aria-label permitted and describes what the canvas
+    // actually is to a screen reader: a picture of the scene. The playable
+    // equivalents live in the minimap and trace, not here.
+    <div className={className} role="img" aria-label={ariaLabel}>
       <Canvas
         camera={{ fov: 52, position: [0, 3.2, -4.5] }}
         dpr={[cfg.dprRange[0], cfg.dprRange[1]]}

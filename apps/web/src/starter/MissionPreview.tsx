@@ -1,41 +1,50 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { m01FirstSteps } from '@codequest/content';
 import {
   createCoordinator,
   isHostToWorker,
   isWorkerToHost,
   parseHostToWorker,
   resolveCapabilities,
+  FAULT_PRESENTATIONS,
   type CoordinatorHandle,
   type HostToWorkerSchema,
   type WorkerToHostSchema,
 } from '@codequest/code-runner';
-import type { MissionPackageSchema, RunEventSchema, SimulationStateSchema } from '@codequest/domain';
+import type {
+  MissionPackageSchema,
+  RunEventSchema,
+  RunFaultSchema,
+  SimulationStateSchema,
+} from '@codequest/domain';
+import { describeRunOutcome } from '@codequest/editor';
+import type { SaveStore } from '@codequest/persistence';
 import {
   deriveAnimationState,
   SceneView,
   inferTierFromHints,
   type AvatarPresentation,
 } from '@codequest/renderer';
-import { createInitialState } from '@codequest/simulation';
+import { createInitialState, validateMissionObjectives } from '@codequest/simulation';
 
 import { MissionWorkspace } from './MissionWorkspace';
 import type { QualityPreference } from './SettingsDialog';
 
-const MISSION = m01FirstSteps;
+export type RunPhase = 'idle' | 'running' | 'paused' | 'done';
 
 export interface MissionPreviewProps {
   readonly avatarPresentation: AvatarPresentation;
   readonly hasReducedEffects: boolean;
+  readonly mission: MissionPackageSchema;
   readonly qualityPreference: QualityPreference;
+  readonly store: SaveStore;
   readonly onReturnToMap: () => void;
+  readonly onCompleted: (levelId: string) => void;
 }
 
 interface RunSession {
   readonly runId: string;
   readonly coordinator: CoordinatorHandle;
-  readonly worker: Worker;
 }
 
 const commandPlaybackDuration = (event: RunEventSchema): number => {
@@ -55,27 +64,30 @@ const commandPlaybackDuration = (event: RunEventSchema): number => {
 export function MissionPreview({
   avatarPresentation,
   hasReducedEffects,
+  mission,
   qualityPreference,
+  store,
   onReturnToMap,
+  onCompleted,
 }: MissionPreviewProps) {
   const agentName = avatarPresentation === 'girl' ? 'Nova' : 'Kai';
   const initialState = useMemo<SimulationStateSchema>(
-    () => createInitialState(MISSION.startState.avatar),
-    [],
+    () => createInitialState(mission.startState.avatar),
+    [mission],
   );
   const [simulation, setSimulation] = useState<SimulationStateSchema>(initialState);
   const [events, setEvents] = useState<readonly RunEventSchema[]>([]);
   const [queuedEvents, setQueuedEvents] = useState<readonly RunEventSchema[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
-  const [runStateLabel, setRunStateLabel] = useState(
-    `Write your route now. Running it will animate ${agentName} in this world once the safe mission runner is connected.`,
-  );
+  const [runPhase, setRunPhase] = useState<RunPhase>('idle');
+  const [fault, setFault] = useState<RunFaultSchema | null>(null);
   const sessionRef = useRef<RunSession | null>(null);
   const playbackTimerRef = useRef<number | null>(null);
   const playbackActiveRef = useRef(false);
   const workerFinishedRef = useRef(false);
-  const terminalLabelRef = useRef<string | null>(null);
-  const capabilities = useMemo(() => resolveCapabilities(MISSION), []);
+  const watchdogRef = useRef<number | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const [isRunnerReady, setRunnerReady] = useState(false);
+  const capabilities = useMemo(() => resolveCapabilities(mission), [mission]);
   const inferredQuality = inferTierFromHints({
     hardwareConcurrency: typeof navigator === 'undefined' ? 4 : navigator.hardwareConcurrency,
     devicePixelRatio: typeof window === 'undefined' ? 1 : window.devicePixelRatio,
@@ -84,29 +96,30 @@ export function MissionPreview({
 
   const stopSession = useCallback(() => {
     const session = sessionRef.current;
-    if (!session) return;
-    session.worker.terminate();
-    sessionRef.current = null;
+    if (session) {
+      // Cancel through the protocol rather than terminating: the worker keeps
+      // its loaded QuickJS runtime so the next run starts immediately.
+      session.coordinator.cancel('reset');
+      workerRef.current?.postMessage({ type: 'cancel', runId: session.runId });
+      sessionRef.current = null;
+    }
     if (playbackTimerRef.current !== null) {
       window.clearTimeout(playbackTimerRef.current);
       playbackTimerRef.current = null;
     }
+    if (watchdogRef.current !== null) {
+      window.clearTimeout(watchdogRef.current);
+      watchdogRef.current = null;
+    }
     playbackActiveRef.current = false;
     workerFinishedRef.current = false;
-    terminalLabelRef.current = null;
   }, []);
 
   useEffect(() => {
     if (playbackActiveRef.current || queuedEvents.length === 0) {
-      if (
-        queuedEvents.length === 0 &&
-        workerFinishedRef.current &&
-        terminalLabelRef.current !== null
-      ) {
-        setIsRunning(false);
-        setRunStateLabel(terminalLabelRef.current);
+      if (queuedEvents.length === 0 && workerFinishedRef.current) {
         workerFinishedRef.current = false;
-        terminalLabelRef.current = null;
+        setRunPhase('done');
       }
       return;
     }
@@ -114,6 +127,10 @@ export function MissionPreview({
     const [nextEvent] = queuedEvents;
     playbackActiveRef.current = true;
     setEvents((current) => [...current, nextEvent]);
+    if (nextEvent.type === 'runFault') {
+      setFault(nextEvent);
+      workerFinishedRef.current = true;
+    }
     if (nextEvent.type === 'commandApplied') {
       const after = nextEvent.after;
       if (after && typeof after === 'object' && 'avatar' in after && 'stepCount' in after) {
@@ -124,48 +141,71 @@ export function MissionPreview({
       playbackTimerRef.current = null;
       playbackActiveRef.current = false;
       // The host releases exactly one command after the visible command has
-      // reached its boundary. The worker may already be finished, but it never
-      // mutates simulation state directly.
+      // reached its boundary. While paused the coordinator releases nothing,
+      // so playback stalls here until Resume or Step.
       const session = sessionRef.current;
       const released = session?.coordinator.advance() ?? [];
       setQueuedEvents((current) => [...current.slice(1), ...released]);
       if (session?.coordinator.state().lifecycle === 'complete' && released.length === 0) {
         workerFinishedRef.current = true;
-        terminalLabelRef.current = 'Run finished. Adjust the route and run again.';
       }
     }, hasReducedEffects ? 0 : commandPlaybackDuration(nextEvent));
   }, [hasReducedEffects, queuedEvents]);
 
-  const handleWorkerMessage = useCallback(
-    (message: WorkerToHostSchema) => {
-      const session = sessionRef.current;
-      if (!session) return;
-      const next = session.coordinator.onWorkerMessage(message);
-      // A worker evaluates source independently. Starting playback releases the
-      // first queued request; every later request waits for the preceding
-      // animation boundary above.
-      const released = message.type === 'runFinished' ? session.coordinator.advance() : [];
-      if (next.length > 0 || released.length > 0) {
-        setQueuedEvents((current) => [...current, ...next, ...released]);
-      }
-      const state = session.coordinator.state();
-      if (state.lifecycle === 'complete') {
-        workerFinishedRef.current = true;
-        terminalLabelRef.current = 'Run finished. Adjust the route and run again.';
-      } else if (state.lifecycle === 'fault') {
-        const lastFault = state.events[state.events.length - 1];
-        const reason = lastFault && lastFault.type === 'runFault' ? lastFault.reasonKey : 'run fault';
-        workerFinishedRef.current = true;
-        terminalLabelRef.current = `Run stopped: ${reason}.`;
-      } else if (state.lifecycle === 'cancelled') {
-        workerFinishedRef.current = true;
-        terminalLabelRef.current = 'Run cancelled.';
-      }
-    },
-    [],
-  );
+  const handleWorkerMessage = useCallback((message: WorkerToHostSchema) => {
+    // 'ready' arrives during warm-up, before any run exists.
+    if (message.type === 'ready') {
+      setRunnerReady(true);
+      return;
+    }
+    const session = sessionRef.current;
+    if (!session) return;
+    const next = session.coordinator.onWorkerMessage(message);
+    // A worker evaluates source independently. Starting playback releases the
+    // first queued request; every later request waits for the preceding
+    // animation boundary above.
+    const released = message.type === 'runFinished' ? session.coordinator.advance() : [];
+    if (next.length > 0 || released.length > 0) {
+      setQueuedEvents((current) => [...current, ...next, ...released]);
+    }
+    const lifecycle = session.coordinator.state().lifecycle;
+    if (lifecycle === 'complete' || lifecycle === 'fault' || lifecycle === 'cancelled') {
+      workerFinishedRef.current = true;
+    }
+  }, []);
 
-  useEffect(() => () => stopSession(), [stopSession]);
+  /**
+   * Boot the runner as soon as the mission opens. QuickJS needs several seconds
+   * on a page that is also building the 3D scene; doing it here means the wait
+   * happens while the child reads the briefing instead of after they press Run.
+   */
+  const getWorker = useCallback((): Worker => {
+    if (workerRef.current) return workerRef.current;
+    const worker = new Worker(new URL('@codequest/code-runner/worker', import.meta.url), {
+      type: 'module',
+      name: 'codequest-runner',
+    });
+    worker.addEventListener('message', (event: MessageEvent<unknown>) => {
+      if (!isWorkerToHost(event.data)) return;
+      handleWorkerMessage(event.data);
+    });
+    worker.addEventListener('error', (event: ErrorEvent) => {
+      const runId = sessionRef.current?.runId;
+      if (!runId) return;
+      handleWorkerMessage({ type: 'runFault', runId, code: 'blockedApi', reason: event.message });
+    });
+    workerRef.current = worker;
+    return worker;
+  }, [handleWorkerMessage]);
+
+  useEffect(() => {
+    getWorker();
+    return () => {
+      stopSession();
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
+  }, [getWorker, stopSession]);
 
   const handleRun = useCallback(
     (source: string) => {
@@ -173,34 +213,31 @@ export function MissionPreview({
       setEvents([]);
       setQueuedEvents([]);
       setSimulation(initialState);
-      setIsRunning(true);
-      workerFinishedRef.current = false;
-      terminalLabelRef.current = null;
-      setRunStateLabel(`Loading ${agentName}'s safe mission runner…`);
+      setFault(null);
+      setRunPhase('running');
 
       const runId = `run-${Date.now()}`;
-      const worker = new Worker(new URL('@codequest/code-runner/worker', import.meta.url), {
-        type: 'module',
-        name: 'codequest-runner',
-      });
-      worker.addEventListener('message', (event: MessageEvent<unknown>) => {
-        if (!isWorkerToHost(event.data)) return;
-        handleWorkerMessage(event.data);
-      });
-      worker.addEventListener('error', (event: ErrorEvent) => {
-        handleWorkerMessage({
-          type: 'runFault',
-          runId,
-          code: 'blockedApi',
-          reason: event.message,
-        });
-      });
+      const worker = getWorker();
 
+      // The mission package owns the command budget; the runtime limits are the
+      // host's safety net and are deliberately not authorable content.
+      //
+      // maxInstructions is the real guard against a runaway loop: it counts
+      // interrupt checks, so it is unaffected by how much CPU the worker gets.
+      // deadlineMs is only a wall-clock backstop and must stay generous — a
+      // low-end device sharing a core with the 3D scene can take seconds to do
+      // milliseconds of work, and a tight clock aborted every honest run.
+      const budgets = {
+        maxCommands: mission.budgets.maxCommands,
+        maxInstructions: 4096,
+        memoryBytes: 4 * 1024 * 1024,
+        deadlineMs: 12000,
+      };
       const coordinator = createCoordinator({
-        mission: MISSION as MissionPackageSchema,
+        mission,
         capabilities,
         initialState,
-        budgets: { maxCommands: 16, maxInstructions: 4096, memoryBytes: 4 * 1024 * 1024, deadlineMs: 4000 },
+        budgets,
         send(message) {
           if (!isHostToWorker(message)) {
             throw new Error(`invalid host→worker message: ${JSON.stringify(message)}`);
@@ -208,22 +245,98 @@ export function MissionPreview({
           worker.postMessage(message satisfies HostToWorkerSchema);
         },
       });
-      sessionRef.current = { runId, coordinator, worker };
+      sessionRef.current = { runId, coordinator };
 
       const prepared: HostToWorkerSchema = parseHostToWorker({
         type: 'run',
         runId,
         source,
         capabilities,
-        budgets: { memoryBytes: 4 * 1024 * 1024, maxInstructions: 4096, maxCommands: 16, deadlineMs: 4000 },
+        budgets,
       });
       worker.postMessage(prepared);
-      setRunStateLabel(`Running ${agentName}'s route…`);
+
+      // A runner that never answers must not leave a child watching "Running…"
+      // forever. The worker reports its own failures; this covers the case
+      // where it cannot even get that far.
+      watchdogRef.current = window.setTimeout(() => {
+        watchdogRef.current = null;
+        const session = sessionRef.current;
+        if (!session) return;
+        const lifecycle = session.coordinator.state().lifecycle;
+        if (lifecycle === 'complete' || lifecycle === 'fault' || lifecycle === 'cancelled') return;
+        // A wedged runner is replaced outright, so the next Run starts clean.
+        stopSession();
+        workerRef.current?.terminate();
+        workerRef.current = null;
+        setRunnerReady(false);
+        getWorker();
+        setFault({ type: 'runFault', code: 'timeout', reasonKey: 'run.runner-silent' });
+        setRunPhase('done');
+      }, budgets.deadlineMs + 8000);
     },
-    [agentName, capabilities, handleWorkerMessage, initialState, stopSession],
+    [capabilities, getWorker, initialState, mission, stopSession],
   );
 
-  const movementState = isRunning
+  const handlePause = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session) return;
+    session.coordinator.pause();
+    setRunPhase('paused');
+  }, []);
+
+  const handleResume = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session) return;
+    session.coordinator.resume();
+    setRunPhase('running');
+    const released = session.coordinator.advance();
+    if (released.length > 0) setQueuedEvents((current) => [...current, ...released]);
+    else if (session.coordinator.state().lifecycle === 'complete') workerFinishedRef.current = true;
+  }, []);
+
+  const handleStep = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session) return;
+    const released = session.coordinator.step();
+    if (released.length > 0) setQueuedEvents((current) => [...current, ...released]);
+    else if (session.coordinator.state().workerFinished) setRunPhase('done');
+  }, []);
+
+  const handleResetScene = useCallback(() => {
+    stopSession();
+    setEvents([]);
+    setQueuedEvents([]);
+    setSimulation(initialState);
+    setFault(null);
+    setRunPhase('idle');
+  }, [initialState, stopSession]);
+
+  const outcome = useMemo(() => {
+    if (runPhase !== 'done' || fault) return null;
+    return describeRunOutcome(validateMissionObjectives(mission, simulation).issues, {
+      agentName,
+      goal: mission.briefing.goal,
+    });
+  }, [agentName, fault, mission, runPhase, simulation]);
+
+  useEffect(() => {
+    if (outcome?.status === 'success') onCompleted(mission.identity.levelId);
+  }, [mission, onCompleted, outcome]);
+
+  // Any terminal state retires the watchdog; otherwise it would fire later and
+  // replace a finished run's result with a false timeout.
+  useEffect(() => {
+    if (runPhase !== 'done') return;
+    if (watchdogRef.current === null) return;
+    window.clearTimeout(watchdogRef.current);
+    watchdogRef.current = null;
+  }, [runPhase]);
+
+  const faultCopy = fault ? FAULT_PRESENTATIONS[fault.code] : null;
+
+  const isPlaying = runPhase === 'running' || runPhase === 'paused';
+  const movementState = isPlaying
     ? deriveAnimationState(events, simulation).movementState
     : 'idle';
 
@@ -233,7 +346,7 @@ export function MissionPreview({
         <SceneView
           className="starter-scene-view"
           events={events}
-          mission={MISSION}
+          mission={mission}
           movementState={movementState}
           presentation={avatarPresentation}
           quality={quality}
@@ -248,10 +361,20 @@ export function MissionPreview({
       </div>
       <MissionWorkspace
         avatarPresentation={avatarPresentation}
-        mission={MISSION}
-        isRunning={isRunning}
-        runStateLabel={runStateLabel}
+        commands={capabilities.allowedCommandKinds}
+        events={events}
+        fault={fault}
+        faultCopy={faultCopy}
+        mission={mission}
+        onPause={handlePause}
+        onResetScene={handleResetScene}
+        onResume={handleResume}
         onRun={handleRun}
+        onStep={handleStep}
+        isRunnerReady={isRunnerReady}
+        outcome={outcome}
+        runPhase={runPhase}
+        store={store}
       />
     </section>
   );

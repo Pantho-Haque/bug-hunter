@@ -54,3 +54,33 @@ export const mapRunnerFault = (
   });
   return { fault, presentation };
 };
+
+export interface EvaluationFaultContext {
+  readonly cancelled: boolean;
+  readonly startedAt: number;
+  readonly deadlineMs: number;
+}
+
+/**
+ * Classifies a raw runtime error message into a child-facing fault code.
+ * `message` must carry the error name ("ReferenceError: fetch is not defined");
+ * QuickJS keeps the name off the message, so the caller joins them first.
+ */
+export const classifyEvaluationFault = (
+  message: string,
+  context: EvaluationFaultContext,
+  interruptChecks: number,
+  maxInstructions: number,
+): RunFaultSchema['code'] => {
+  if (context.cancelled) return 'cancelled';
+  if (
+    performance.now() - context.startedAt > context.deadlineMs ||
+    interruptChecks >= maxInstructions
+  ) {
+    return 'timeout';
+  }
+  if (/command budget exceeded/i.test(message)) return 'commandLimit';
+  if (/out of memory|stack/i.test(message)) return 'memory';
+  if (/referenceerror|is not defined|is not a function/i.test(message)) return 'blockedApi';
+  return 'syntax';
+};

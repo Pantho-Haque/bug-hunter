@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  classifyEvaluationFault,
   FAULT_PRESENTATIONS,
   mapRunnerFault,
 } from './fault-mapping';
@@ -30,5 +31,23 @@ describe('mapRunnerFault', () => {
       expect(presentation.technicalDetail.length).toBeGreaterThan(0);
       expect(['retry', 'remove-line', 'reset', 'contact-support']).toContain(presentation.nextAction);
     }
+  });
+});
+describe('classifyEvaluationFault', () => {
+  const live = { cancelled: false, startedAt: performance.now(), deadlineMs: 5000 };
+
+  it('reads a blocked global as blockedApi, not as a typo', () => {
+    expect(classifyEvaluationFault("ReferenceError: 'fetch' is not defined", live, 0, 4096)).toBe(
+      'blockedApi',
+    );
+  });
+
+  it('still reports a real parse error as syntax', () => {
+    expect(classifyEvaluationFault('unexpected token', live, 0, 4096)).toBe('syntax');
+  });
+
+  it('prefers cancellation and deadline over the message', () => {
+    expect(classifyEvaluationFault('anything', { ...live, cancelled: true }, 0, 4096)).toBe('cancelled');
+    expect(classifyEvaluationFault('anything', live, 4096, 4096)).toBe('timeout');
   });
 });

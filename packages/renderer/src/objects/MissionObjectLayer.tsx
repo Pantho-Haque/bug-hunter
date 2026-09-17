@@ -116,27 +116,44 @@ const CollectibleObjectMesh = ({
 
 const BlockerObjectMesh = ({
   object,
+  state,
 }: {
   object: Extract<MissionObjectSchema, { kind: 'blocker' }>;
-}) => (
-  <group>
-    {object.occupiedCells.map((cell, index) => {
-      const [x, y, z] = worldFromCell(cell);
-      return (
-        <group key={`${object.id}-${index}`} position={[x, y, z]}>
-          <mesh castShadow position={[0, 0.5, 0]}>
-            <boxGeometry args={[0.95, 1, 0.95]} />
-            <meshStandardMaterial color={blockerPalette.base} flatShading />
-          </mesh>
-          <mesh castShadow position={[0, 1.05, 0]}>
-            <boxGeometry args={[1.05, 0.08, 1.05]} />
-            <meshStandardMaterial color={blockerPalette.cap} flatShading />
-          </mesh>
-        </group>
-      );
-    })}
-  </group>
-);
+  state: SimulationStateSchema;
+}) => {
+  // Mirrors isBlockerOpen() in @codequest/simulation. The renderer cannot
+  // import the simulation, and the simulation still owns the rule: this only
+  // decides how an already-open gate looks.
+  const open =
+    object.unlockedByFlag !== undefined && state.flags[object.unlockedByFlag] === true;
+
+  return (
+    <group>
+      {object.occupiedCells.map((cell, index) => {
+        const [x, y, z] = worldFromCell(cell);
+        return (
+          <group key={`${object.id}-${index}`} position={[x, y, z]}>
+            <mesh castShadow={!open} position={[0, open ? 0.06 : 0.5, 0]}>
+              <boxGeometry args={[0.95, open ? 0.12 : 1, 0.95]} />
+              <meshStandardMaterial
+                color={blockerPalette.base}
+                flatShading
+                opacity={open ? 0.55 : 1}
+                transparent={open}
+              />
+            </mesh>
+            {open ? null : (
+              <mesh castShadow position={[0, 1.05, 0]}>
+                <boxGeometry args={[1.05, 0.08, 1.05]} />
+                <meshStandardMaterial color={blockerPalette.cap} flatShading />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
+    </group>
+  );
+};
 
 const InteractableObjectMesh = ({
   object,
@@ -226,7 +243,7 @@ const renderObject = (
     case 'collectible':
       return <CollectibleObjectMesh key={object.id} object={object} state={state} />;
     case 'blocker':
-      return <BlockerObjectMesh key={object.id} object={object} />;
+      return <BlockerObjectMesh key={object.id} object={object} state={state} />;
     case 'interactable':
       return <InteractableObjectMesh key={object.id} object={object} state={state} />;
     case 'trigger':

@@ -71,6 +71,12 @@ export const blockerObjectSchema = missionObjectBaseSchema.extend({
   kind: z.literal('blocker'),
   occupiedCells: z.array(cellSchema).min(1),
   reasonKey: z.string().min(1),
+  /**
+   * A gate. While this simulation flag is false the blocker is solid; once a
+   * learner sets it (by interacting with the matching object) the cells open.
+   * Omit for scenery that never opens, such as a wall or a pond.
+   */
+  unlockedByFlag: z.string().min(1).optional(),
 });
 export type BlockerObjectSchema = z.infer<typeof blockerObjectSchema>;
 

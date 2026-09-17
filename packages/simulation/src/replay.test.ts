@@ -127,6 +127,29 @@ describe('simulation: command reducer branches', () => {
     });
   });
 
+  it('keeps a gate solid until its lever flag is set, then lets the avatar through', () => {
+    const mission = JSON.parse(JSON.stringify(m01FirstSteps));
+    mission.objects.push({
+      id: 'gate',
+      label: 'Gate',
+      required: true,
+      kind: 'blocker',
+      occupiedCells: [{ cellX: 1, cellZ: 0 }],
+      reasonKey: 'gate.closed',
+      unlockedByFlag: 'interactable.lever.state',
+    });
+
+    const closed = replayCommands(mission, [cmd('moveForward', 1)]);
+    expect(closed.events[0]).toMatchObject({ type: 'commandRejected', reasonKey: 'gate.closed' });
+
+    const opened = replayFromInitial(
+      mission,
+      { ...mission.startState, flags: { 'interactable.lever.state': true } },
+      [cmd('moveForward', 1)],
+    );
+    expect(opened.finalState.avatar.cellX).toBe(1);
+  });
+
   it('rejects collect when nothing is in front', () => {
     const result = replayCommands(m01FirstSteps, [cmd('collect', 1)]);
     expect(result.events[0]).toMatchObject({ type: 'commandRejected', reasonKey: 'collect.nothing-here' });

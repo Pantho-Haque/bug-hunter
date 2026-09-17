@@ -12,6 +12,8 @@ export interface SettingsDialogProps {
   readonly onAvatarPresentationChange: (presentation: AvatarPresentation) => void;
   readonly onQualityChange: (quality: QualityPreference) => void;
   readonly onReducedEffectsChange: (reduced: boolean) => void;
+  readonly onExport: () => void;
+  readonly onImport: (file: File) => void;
   readonly onClose: () => void;
 }
 
@@ -23,6 +25,8 @@ export function SettingsDialog({
   onAvatarPresentationChange,
   onQualityChange,
   onReducedEffectsChange,
+  onExport,
+  onImport,
   onClose,
 }: SettingsDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -99,6 +103,31 @@ export function SettingsDialog({
             />
             Reduce camera and character motion
           </label>
+        </fieldset>
+
+        <fieldset className="settings-group">
+          <legend>Your save file</legend>
+          <p>
+            Everything is stored on this device only. Save a copy before you clear your browser, or
+            to move your progress to another computer.
+          </p>
+          <div className="settings-choice-row">
+            <button className="secondary-button" onClick={onExport} type="button">
+              Save a copy
+            </button>
+            <label className="secondary-button settings-file-button">
+              Load a copy
+              <input
+                accept="application/json,.json"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) onImport(file);
+                  event.target.value = '';
+                }}
+                type="file"
+              />
+            </label>
+          </div>
         </fieldset>
 
         <p className="settings-dialog__note">Changes update the game now and are saved on this device.</p>
