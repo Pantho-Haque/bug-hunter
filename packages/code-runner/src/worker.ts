@@ -14,6 +14,8 @@ import type {
   WorkerToHostSchema,
 } from './protocol';
 import { parseHostToWorker } from './protocol';
+import { evaluatePredicate, reduceCommand, type SimulationState } from '@codequest/simulation';
+
 import { classifyEvaluationFault } from './fault-mapping';
 import { instrumentCommandSourceLines } from './source-mapping';
 
@@ -87,6 +89,19 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
   const jsContext: QuickJSContext = runtime.newContext();
   const capabilities: RunnerCapabilitiesSchema = message.capabilities;
 
+  /**
+   * A predicate has to answer from the world as it stands at that line, so the
+   * worker mirrors the simulation while learner code runs. The host reduces the
+   * same commands independently and stays authoritative for the result; the
+   * mirror exists only so `while (canMoveForward())` can be asked at all.
+   *
+   * Learner code cannot reach this: it runs inside QuickJS, which has no access
+   * to the worker's own scope.
+   */
+  let mirror: SimulationState | undefined = message.initialState;
+  const missionForMirror = message.mission;
+
+
   let appliedCount = 0;
   const rejectedCount = 0;
   let commandCounter = 0;
@@ -102,14 +117,24 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
         }
         commandCounter += 1;
         const commandId = `c-${commandCounter}`;
-        const requestedLine = jsContext.dump(args[0]) as unknown;
+        // A command that somehow arrives without its injected line number must
+        // still run: losing the line is a worse trace, not a broken program.
+        const requestedLine: unknown = args[0] === undefined ? undefined : jsContext.dump(args[0]);
         const sourceLine = typeof requestedLine === 'number' && Number.isInteger(requestedLine)
           ? requestedLine
           : 0;
+        if (mirror !== undefined && missionForMirror !== undefined) {
+          mirror = reduceCommand(mirror, missionForMirror, {
+            commandId,
+            kind,
+            sourceLine,
+          }).nextState;
+        }
         send({
           type: 'commandRequested',
           runId: context.runId,
           command: { commandId, kind, sourceLine },
+          mirrorStepCount: mirror?.stepCount,
         });
         return jsContext.undefined;
       });
@@ -118,6 +143,24 @@ const executeRun = async (message: Extract<HostToWorkerSchema, { type: 'run' }>)
 
     for (const kind of capabilities.allowedCommandKinds) {
       const handle = commandMaker(kind);
+      jsContext.setProp(jsContext.global, kind, handle);
+      handle.dispose();
+    }
+
+    // Predicates read the mirror and return a boolean straight into QuickJS.
+    // They apply no command and cost no command budget.
+    for (const kind of capabilities.allowedPredicateKinds) {
+      const handle = jsContext.newFunction(kind, () => {
+        if (context.cancelled) throw new Error('cancelled');
+        if (mirror === undefined || missionForMirror === undefined) {
+          // A mission unlocked a predicate but the host sent no world to read.
+          // Failing loudly beats answering a question from nothing.
+          throw new Error(`predicate ${kind} has no world state`);
+        }
+        return evaluatePredicate(kind, mirror, missionForMirror)
+          ? jsContext.true
+          : jsContext.false;
+      });
       jsContext.setProp(jsContext.global, kind, handle);
       handle.dispose();
     }

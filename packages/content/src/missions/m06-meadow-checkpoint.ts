@@ -119,13 +119,13 @@ export const m06MeadowCheckpoint: MissionPackageSchema = {
     {
       hintId: 'h3',
       stage: 3,
-      prompt: 'The arch stays shut until the second sprite is awake, so wake it before you walk on.',
+      prompt: 'The arch stays shut until the second sprite wakes up. Wake it first.',
       scaffold: 'interact();\nmoveForward();\nmoveForward();\ncollect();\ninteract();',
     },
     {
       hintId: 'h4',
       stage: 4,
-      prompt: 'Solution shown below.',
+      prompt: 'Here is the answer.',
       reveal:
         'interact();\nmoveForward();\nmoveForward();\ncollect();\ninteract();\nmoveForward();\nmoveForward();\nmoveForward();',
     },

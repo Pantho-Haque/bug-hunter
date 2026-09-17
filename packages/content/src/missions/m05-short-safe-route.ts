@@ -123,14 +123,14 @@ export const m05ShortSafeRoute: MissionPackageSchema = {
     {
       hintId: 'h4',
       stage: 4,
-      prompt: 'Solution shown below.',
+      prompt: 'Here is the answer.',
       reveal:
         'turnLeft();\nmoveForward();\nturnRight();\nmoveForward();\ncollect();\nmoveForward();\ncollect();\nmoveForward();',
     },
   ],
   analogousExample: {
     title: 'Walking around a puddle',
-    problem: 'The pavement is flooded, so step onto the grass beside it and carry on.',
+    problem: 'The path is full of water. Step on the grass and keep going.',
     source: 'examples/around-the-puddle',
     note: 'Ask which way to step aside before counting how many steps forward.',
   },

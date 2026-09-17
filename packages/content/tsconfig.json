@@ -8,8 +8,20 @@
     "declaration": true,
     "declarationMap": true,
     "noEmit": false,
-    "types": ["vitest/globals"]
+    "types": [
+      "vitest/globals"
+    ]
   },
-  "include": ["src"],
-  "references": [{ "path": "../domain" }]
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../domain"
+    }
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ]
 }

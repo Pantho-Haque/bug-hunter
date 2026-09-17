@@ -53,6 +53,21 @@ From the repository root:
 - `pnpm lint` — runs ESLint and the package-boundary check.
 - `pnpm preview` — serves the production build of `apps/web` locally.
 
+Three checks need a built `apps/web/dist` and a real browser. They use the system
+Chrome when there is one and fall back to Playwright's Chromium:
+
+- `pnpm hostile-check` — drives the **built** runner worker in a browser with hostile
+  learner code and fails if anything escapes containment. This is a security gate and
+  runs in CI; the coordinator's synthetic tests do not cover the transport.
+- `pnpm perf-check` — frame profile, heap, time-to-runner-ready per quality tier, and
+  the bundle budget. Fails if a quality tier changes whether the mission can be solved.
+  Run it on a target device and commit the report it writes.
+- `pnpm copy-check` — keyboard-only first run, focus indicators, 200% text, and
+  reduced motion. Reading level and fault copy are unit tests instead, so they run with
+  `pnpm test`.
+
+Each writes a dated report under `docs/evidence/`.
+
 ## Adding a new dependency between packages
 
 1. Add the dependency to the consuming package's `package.json` using the

@@ -94,7 +94,7 @@ export const m01FirstSteps: MissionPackageSchema = {
     {
       hintId: 'h4',
       stage: 4,
-      prompt: 'Solution shown below.',
+      prompt: 'Here is the answer.',
       reveal: 'moveForward();\nmoveForward();\nmoveForward();',
     },
   ],
@@ -129,14 +129,7 @@ export const m01FirstSteps: MissionPackageSchema = {
       source: 'demo/m01-straight.js',
       expectedCommandCount: 3,
       expectedStepCount: 3,
-      notes: 'Three east moveForward() calls; canonical solution.',
-    },
-    {
-      solutionId: 'sol-m01-fan',
-      source: 'demo/m01-fan.js',
-      expectedCommandCount: 7,
-      expectedStepCount: 3,
-      notes: 'Adds a loop-free turn-and-recover pattern; reaches the same goal cell.',
+      notes: 'Three east moveForward() calls. M01 unlocks only moveForward and requires the beacon cell, so this is the only valid solution.',
     },
   ],
   expectedFailures: [

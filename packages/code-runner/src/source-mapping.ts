@@ -16,6 +16,13 @@ export const instrumentCommandSourceLines = (
   let result = '';
   let index = 0;
   let line = 1;
+  /**
+   * Last meaningful character of actual code, used to tell `robot.move()` from
+   * `move()`. It must ignore comments and strings: a comment ending in a full
+   * stop — "// walk east." — would otherwise look like a member access and the
+   * call after it would lose its line number.
+   */
+  let previousCodeChar = '';
   let state: 'code' | 'lineComment' | 'blockComment' | 'single' | 'double' | 'template' = 'code';
 
   const append = (value: string) => {
@@ -72,6 +79,7 @@ export const instrumentCommandSourceLines = (
     if (character === '`') { append(character); index += 1; state = 'template'; continue; }
 
     if (!identifierStart.test(character)) {
+      if (!/\s/.test(character)) previousCodeChar = character;
       append(character);
       index += 1;
       continue;
@@ -81,10 +89,11 @@ export const instrumentCommandSourceLines = (
     index += 1;
     while (index < source.length && identifierPart.test(source[index])) index += 1;
     const identifier = source.slice(start, index);
-    const before = source.slice(0, start).trimEnd().at(-1);
     let callIndex = index;
     while (/\s/.test(source[callIndex] ?? '')) callIndex += 1;
-    const isDirectCommand = commands.has(identifier) && before !== '.' && source[callIndex] === '(';
+    const isDirectCommand =
+      commands.has(identifier) && previousCodeChar !== '.' && source[callIndex] === '(';
+    previousCodeChar = identifier.slice(-1);
     append(identifier);
     if (isDirectCommand) {
       append(source.slice(index, callIndex + 1));

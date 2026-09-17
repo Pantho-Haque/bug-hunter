@@ -9,6 +9,19 @@ export const commandKindSchema = z.enum([
 ]);
 export type CommandKindSchema = z.infer<typeof commandKindSchema>;
 
+/**
+ * Predicates are the first learner-callable APIs that RETURN a value. They never
+ * change the world; they only read it, so they cost no command budget.
+ */
+export const predicateKindSchema = z.enum([
+  'canMoveForward',
+  'isPearlHere',
+  'isWindSafe',
+  'signPointsLeft',
+  'hasLantern',
+]);
+export type PredicateKindSchema = z.infer<typeof predicateKindSchema>;
+
 export const gameCommandSchema = z.object({
   commandId: z.string().min(1),
   kind: commandKindSchema,

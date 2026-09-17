@@ -8,12 +8,26 @@
     "declaration": true,
     "declarationMap": true,
     "noEmit": false,
-    "types": ["vitest/globals"]
+    "types": [
+      "vitest/globals"
+    ]
   },
-  "include": ["src"],
+  "include": [
+    "src"
+  ],
   "references": [
-    { "path": "../domain" },
-    { "path": "../simulation" },
-    { "path": "../content" }
+    {
+      "path": "../domain"
+    },
+    {
+      "path": "../simulation"
+    },
+    {
+      "path": "../content"
+    }
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
   ]
 }

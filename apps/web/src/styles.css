@@ -309,6 +309,8 @@ h2 { font-size: 1.25rem; margin-bottom: 0; }
 
 .mission-tools__new { border: 1px solid #ffe166; color: #ffe166 !important; }
 
+.mission-tools__ask { background: #17325c; color: #8be9fd !important; }
+
 .mission-tools__new { box-shadow: 0 0 0 1px #ffe166; }
 
 .mission-list__done small { color: #6ee7a8; }

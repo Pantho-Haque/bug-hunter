@@ -36,7 +36,17 @@ export interface SaveStore {
   writeSettings(next: SettingsRecordSchema): boolean;
   readProgress(): ProgressRecordSchema;
   writeProgress(next: ProgressRecordSchema): boolean;
-  readLevelCode(levelId: string, apiVersion: string): LevelCodeRecordSchema | undefined;
+  /**
+   * `alsoTry` lists older API versions to fall back to. Drafts are keyed per API
+   * version, so bumping a mission from v1 to v2 would otherwise hide a child's
+   * saved code behind the new key. A recovered draft is re-saved under the
+   * current version, so the fallback happens once.
+   */
+  readLevelCode(
+    levelId: string,
+    apiVersion: string,
+    alsoTry?: readonly string[],
+  ): LevelCodeRecordSchema | undefined;
   writeLevelCode(record: LevelCodeRecordSchema): boolean;
   /** Snapshot of everything a family would want to keep, ready to download. */
   exportBackup(options: {
@@ -125,7 +135,7 @@ export const createSaveStore = (
     writeSettings: (next) => write(persistenceStores.settings, next),
     readProgress: () => read(persistenceStores.progress, migrateProgress, emptyProgress),
     writeProgress: (next) => write(persistenceStores.progress, next),
-    readLevelCode: (levelId, apiVersion) => {
+    readLevelCode: (levelId, apiVersion, alsoTry = []) => {
       const key = levelCodeKey(levelId, apiVersion);
       let raw: string | null = null;
       try {
@@ -133,7 +143,16 @@ export const createSaveStore = (
       } catch {
         return undefined;
       }
-      if (raw === null) return undefined;
+      if (raw === null) {
+        for (const older of alsoTry) {
+          const carried = store.readLevelCode(levelId, older);
+          if (!carried) continue;
+          const moved = { ...carried, apiVersion };
+          store.writeLevelCode(moved);
+          return moved;
+        }
+        return undefined;
+      }
       try {
         return migrateLevelCode(JSON.parse(raw));
       } catch (error) {

@@ -89,3 +89,30 @@ describe('createSaveStore', () => {
     expect(store.readProgress().completedLevelIds).toEqual(['m01']);
   });
 });
+
+describe('saved code across an API version bump', () => {
+  it('keeps drafts separate per API version', () => {
+    const store = createSaveStore(memoryStorage());
+    store.writeLevelCode(newLevelCode('m16', 'v1', 'old();'));
+    store.writeLevelCode(newLevelCode('m16', 'v2', 'new();'));
+    expect(store.readLevelCode('m16', 'v1')?.source).toBe('old();');
+    expect(store.readLevelCode('m16', 'v2')?.source).toBe('new();');
+  });
+
+  it('carries a v1 draft forward when a mission moves to v2', () => {
+    const storage = memoryStorage();
+    const store = createSaveStore(storage);
+    store.writeLevelCode(newLevelCode('m16', 'v1', 'moveForward();'));
+
+    const carried = store.readLevelCode('m16', 'v2', ['v1']);
+    expect(carried?.source).toBe('moveForward();');
+    expect(carried?.apiVersion).toBe('v2');
+    // Re-saved under the new key, so the fallback is needed only once.
+    expect(createSaveStore(storage).readLevelCode('m16', 'v2')?.source).toBe('moveForward();');
+  });
+
+  it('does not invent a draft when none exists at any version', () => {
+    const store = createSaveStore(memoryStorage());
+    expect(store.readLevelCode('m30', 'v2', ['v1'])).toBeUndefined();
+  });
+});

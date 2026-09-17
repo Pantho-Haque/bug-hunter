@@ -104,7 +104,7 @@ export const m03TreasureAtYourFeet: MissionPackageSchema = {
     {
       hintId: 'h4',
       stage: 4,
-      prompt: 'Solution shown below.',
+      prompt: 'Here is the answer.',
       reveal: 'moveForward();\nmoveForward();\ncollect();\nmoveForward();',
     },
   ],

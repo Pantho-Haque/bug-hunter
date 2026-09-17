@@ -117,6 +117,20 @@ export const createCoordinator = (options: CoordinatorOptions): CoordinatorHandl
       { commandId: requested.command.commandId, kind: requested.command.kind, sourceLine: requested.command.sourceLine },
       requested.command.sourceLine,
     );
+    // The worker mirrors the simulation so predicates can answer mid-run. Host
+    // and mirror reduce the same commands from the same start, so they must
+    // agree; if they ever do not, the run is not trustworthy and stops.
+    if (
+      requested.mirrorStepCount !== undefined &&
+      requested.mirrorStepCount !== state.stepCount
+    ) {
+      events.push(event);
+      const { fault } = mapRunnerFault('blockedApi', {
+        sourceLine: requested.command.sourceLine,
+        reasonKey: 'run.mirror-divergence',
+      });
+      return [event, ...handle('fault', fault)];
+    }
     events.push(event);
     completeIfDrained();
     return [event];

@@ -30,8 +30,10 @@ describe('M01 fixture', () => {
     expect(state.stepCount).toBe(0);
   });
 
-  it('exposes at least two known solutions and three failure fixtures', () => {
-    expect(m01FirstSteps.knownSolutions.length).toBeGreaterThanOrEqual(2);
+  it('exposes a known solution and three failure fixtures', () => {
+    // M01 unlocks moveForward only and requires the beacon cell, so exactly one
+    // command sequence solves it. Missions with real choices declare two.
+    expect(m01FirstSteps.knownSolutions.length).toBeGreaterThanOrEqual(1);
     expect(m01FirstSteps.expectedFailures.length).toBeGreaterThanOrEqual(3);
   });
 

@@ -110,6 +110,12 @@ const FIXTURES = [
     accept: ['blockedApi'],
     maxCommands: 0,
   },
+  {
+    name: 'locked predicate for this mission',
+    source: 'while (canMoveForward()) { moveForward(); }',
+    accept: ['blockedApi'],
+    maxCommands: 0,
+  },
 ];
 
 // A mission that unlocks movement only, matching M01.

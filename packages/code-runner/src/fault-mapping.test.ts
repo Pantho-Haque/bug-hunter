@@ -51,3 +51,14 @@ describe('classifyEvaluationFault', () => {
     expect(classifyEvaluationFault('anything', live, 4096, 4096)).toBe('timeout');
   });
 });
+
+describe('fault copy is usable by a child', () => {
+  it('gives every fault plain copy and one next action', () => {
+    for (const [code, presentation] of Object.entries(FAULT_PRESENTATIONS)) {
+      expect(presentation.childCopy.trim().length, code).toBeGreaterThan(0);
+      // No blame, no jargon, no dead end: the child must be told what to do.
+      expect(presentation.nextAction, code).toBeTruthy();
+      expect(presentation.childCopy, code).not.toMatch(/error|exception|undefined|null|stack/i);
+    }
+  });
+});

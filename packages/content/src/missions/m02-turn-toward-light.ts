@@ -104,7 +104,7 @@ export const m02TurnTowardLight: MissionPackageSchema = {
     {
       hintId: 'h4',
       stage: 4,
-      prompt: 'Solution shown below.',
+      prompt: 'Here is the answer.',
       reveal: 'moveForward();\nmoveForward();\nturnRight();\nmoveForward();',
     },
   ],

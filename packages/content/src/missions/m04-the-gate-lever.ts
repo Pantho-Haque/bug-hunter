@@ -107,7 +107,7 @@ export const m04TheGateLever: MissionPackageSchema = {
     {
       hintId: 'h4',
       stage: 4,
-      prompt: 'Solution shown below.',
+      prompt: 'Here is the answer.',
       reveal: 'interact();\nmoveForward();\nmoveForward();\nmoveForward();',
     },
   ],

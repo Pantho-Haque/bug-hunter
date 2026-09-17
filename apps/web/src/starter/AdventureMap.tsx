@@ -21,8 +21,8 @@ interface MissionRow {
  * mission the content package does not actually ship. Later zones are still
  * authored prose because their mission packages do not exist yet.
  */
-const meadowRows = (completedLevelIds: readonly string[]): MissionRow[] =>
-  contentRegistry.listMissionsByZone(toZoneId('meadow-of-moves')).map((mission) => {
+const zoneRows = (registryZoneId: string, completedLevelIds: readonly string[]): MissionRow[] =>
+  contentRegistry.listMissionsByZone(toZoneId(registryZoneId)).map((mission) => {
     const id = mission.identity.levelId;
     const unlocked = mission.identity.prerequisiteLevelIds.every((prerequisite) =>
       completedLevelIds.includes(prerequisite),
@@ -46,6 +46,8 @@ const plannedRows = (zone: Zone): MissionRow[] =>
 interface Zone {
   concept: string;
   id: string;
+  /** The content registry's zone id, when missions for it exist. */
+  registryZoneId: string;
   missions: { task: string; title: string }[];
   name: string;
   number: number;
@@ -56,6 +58,7 @@ const zones: Zone[] = [
   {
     concept: 'Sequences · turns · interactions',
     id: 'meadow',
+    registryZoneId: 'meadow-of-moves',
     // Rendered from the content registry; see meadowRows().
     missions: [],
     name: 'Meadow of Moves',
@@ -65,6 +68,7 @@ const zones: Zone[] = [
   {
     concept: 'Functions · parameters · reuse',
     id: 'forest',
+    registryZoneId: 'echo-forest',
     missions: [
       { task: 'Turn a repeated path into a function.', title: 'Name the Trail' },
       { task: 'Reuse one route to wake two lights.', title: 'Two Sleeping Fireflies' },
@@ -80,6 +84,7 @@ const zones: Zone[] = [
   {
     concept: 'For loops · while loops · patterns',
     id: 'lagoon',
+    registryZoneId: 'loop-lagoon',
     missions: [
       { task: 'Repeat four steps to reach the shell.', title: 'Tidal Steps' },
       { task: 'Move and light three ocean buoys.', title: 'Light the Buoys' },
@@ -95,6 +100,7 @@ const zones: Zone[] = [
   {
     concept: 'Booleans · if/else · variables',
     id: 'cliffs',
+    registryZoneId: 'logic-cliffs',
     missions: [
       { task: 'Check the wind before choosing a bridge.', title: 'The Wind Flag' },
       { task: 'Follow either direction shown by a sign.', title: 'Fork in the Path' },
@@ -110,6 +116,7 @@ const zones: Zone[] = [
   {
     concept: 'Arrays · debugging · planning',
     id: 'observatory',
+    registryZoneId: 'maker-observatory',
     missions: [
       { task: 'Activate color pads in array order.', title: 'Star List' },
       { task: 'Deliver samples to every listed station.', title: 'Deliver the Samples' },
@@ -127,10 +134,15 @@ const zones: Zone[] = [
 export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: AdventureMapProps) {
   const [selectedZoneId, setSelectedZoneId] = useState('meadow');
   const selectedZone = zones.find((zone) => zone.id === selectedZoneId) ?? zones[0];
-  const rows = selectedZone.id === 'meadow' ? meadowRows(completedLevelIds) : plannedRows(selectedZone);
-  const nextMission = meadowRows(completedLevelIds).find((row) => row.state === 'ready');
+  // A zone becomes playable the moment the registry ships missions for it, so
+  // the map can never promise or hide a mission the content package disagrees with.
+  const authored = zoneRows(selectedZone.registryZoneId, completedLevelIds);
+  const rows = authored.length > 0 ? authored : plannedRows(selectedZone);
+  const nextMission = zones
+    .flatMap((zone) => zoneRows(zone.registryZoneId, completedLevelIds))
+    .find((row) => row.state === 'ready');
   const collection = contentRegistry
-    .listMissionsByZone(toZoneId('meadow-of-moves'))
+    .listMissionsByZone(toZoneId(selectedZone.registryZoneId))
     .flatMap((mission) => mission.rewards);
 
   return (
@@ -244,7 +256,7 @@ export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: A
         <aside className={`zone-dossier zone-dossier--${selectedZone.id}`} aria-live="polite">
           <div className="zone-dossier__heading">
             <span className="zone-number">Zone {selectedZone.number}</span>
-            <span className="zone-status">{selectedZone.id === 'meadow' ? 'Starter playable' : 'World plan'}</span>
+            <span className="zone-status">{authored.length > 0 ? 'Playable' : 'World plan'}</span>
           </div>
           <h2>{selectedZone.name}</h2>
           <p>{selectedZone.story}</p>
@@ -288,7 +300,7 @@ export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: A
           ) : (
             <p className="map-note">Every Meadow mission is complete. Replay any of them from the list above.</p>
           )}
-          {selectedZone.id === 'meadow' ? (
+          {authored.length > 0 ? (
             <section className="collection" aria-labelledby="collection-title">
               <h3 id="collection-title">
                 Your collection · {unlockedRewardIds.length} of {collection.length}
@@ -310,7 +322,7 @@ export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: A
               </ul>
             </section>
           ) : null}
-          {selectedZone.id !== 'meadow' && <p className="map-note">This preliminary map previews the full journey. Meadow of Moves is the playable zone today.</p>}
+          {authored.length === 0 && <p className="map-note">This preliminary map previews the full journey. Meadow of Moves is the playable zone today.</p>}
         </aside>
       </div>
     </section>

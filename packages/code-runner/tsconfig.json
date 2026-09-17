@@ -8,13 +8,32 @@
     "declaration": true,
     "declarationMap": true,
     "noEmit": false,
-    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
-    "types": ["vitest/globals"]
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable",
+      "WebWorker"
+    ],
+    "types": [
+      "vitest/globals"
+    ]
   },
-  "include": ["src"],
+  "include": [
+    "src"
+  ],
   "references": [
-    { "path": "../content" },
-    { "path": "../domain" },
-    { "path": "../simulation" }
+    {
+      "path": "../content"
+    },
+    {
+      "path": "../domain"
+    },
+    {
+      "path": "../simulation"
+    }
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
   ]
 }

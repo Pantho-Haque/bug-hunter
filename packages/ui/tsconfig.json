@@ -9,8 +9,22 @@
     "declarationMap": true,
     "noEmit": false,
     "jsx": "react-jsx",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ]
   },
-  "include": ["src"],
-  "references": [{ "path": "../domain" }]
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../domain"
+    }
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ]
 }

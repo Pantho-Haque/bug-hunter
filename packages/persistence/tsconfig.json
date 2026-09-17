@@ -8,9 +8,25 @@
     "declaration": true,
     "declarationMap": true,
     "noEmit": false,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vitest/globals"]
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "vitest/globals"
+    ]
   },
-  "include": ["src"],
-  "references": [{ "path": "../domain" }]
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../domain"
+    }
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ]
 }

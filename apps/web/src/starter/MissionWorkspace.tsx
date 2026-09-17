@@ -13,6 +13,8 @@ export interface MissionWorkspaceProps {
   readonly avatarPresentation: AvatarPresentation;
   /** Every command this mission unlocks, not just the newly taught one. */
   readonly commands: readonly string[];
+  /** Questions this mission unlocks. They return a value and change nothing. */
+  readonly predicates: readonly string[];
   readonly mission: MissionPackageSchema;
   readonly events: readonly RunEventSchema[];
   readonly fault: RunFaultSchema | null;
@@ -54,6 +56,7 @@ const traceLine = (event: RunEventSchema): string | null => {
 export function MissionWorkspace({
   avatarPresentation,
   commands,
+  predicates,
   mission,
   events,
   fault,
@@ -70,8 +73,8 @@ export function MissionWorkspace({
 }: MissionWorkspaceProps) {
   const [source, setSource] = useState(
     () =>
-      store.readLevelCode(mission.identity.levelId, mission.identity.apiVersion)?.source ??
-      mission.starterCode,
+      store.readLevelCode(mission.identity.levelId, mission.identity.apiVersion, ['v1'])
+        ?.source ?? mission.starterCode,
   );
   const [hintStage, setHintStage] = useState(0);
   const agentName = avatarPresentation === 'girl' ? 'Nova' : 'Kai';
@@ -110,6 +113,19 @@ export function MissionWorkspace({
               {command}()
             </code>
           ))}
+          {predicates.map((predicate) => (
+            <code
+              className={
+                mission.curriculum.newConcepts.includes(predicate)
+                  ? 'mission-tools__new mission-tools__ask'
+                  : 'mission-tools__ask'
+              }
+              key={predicate}
+              title="Asks the world a question and answers yes or no"
+            >
+              {predicate}()
+            </code>
+          ))}
         </div>
       </section>
 
@@ -124,6 +140,7 @@ export function MissionWorkspace({
         </div>
         <MissionCodeEditor
           commands={commands}
+          predicates={predicates}
           label={`JavaScript code editor for ${mission.identity.title}`}
           onChange={setSource}
           source={source}

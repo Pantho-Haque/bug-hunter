@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef } from 'react';
 interface MissionCodeEditorProps {
   readonly source: string;
   readonly commands: readonly string[];
+  readonly predicates: readonly string[];
   readonly onChange: (source: string) => void;
   readonly label: string;
 }
@@ -60,7 +61,13 @@ const draculaTheme = EditorView.theme({
   '.cm-completionDetail': { color: '#bd93f9' },
 });
 
-export function MissionCodeEditor({ source, commands, onChange, label }: MissionCodeEditorProps) {
+export function MissionCodeEditor({
+  source,
+  commands,
+  predicates,
+  onChange,
+  label,
+}: MissionCodeEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -72,9 +79,17 @@ export function MissionCodeEditor({ source, commands, onChange, label }: Mission
         label: command,
         type: 'function' as const,
       })),
+      // A predicate is used inside a condition, so it completes without the
+      // trailing semicolon a command gets.
+      ...predicates.map((predicate) => ({
+        apply: `${predicate}()`,
+        detail: 'Question: yes or no',
+        label: predicate,
+        type: 'function' as const,
+      })),
       ...javascriptKeywords,
     ],
-    [commands],
+    [commands, predicates],
   );
 
   useEffect(() => {

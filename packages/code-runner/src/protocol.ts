@@ -2,8 +2,11 @@ import { z } from 'zod';
 
 import {
   commandKindSchema,
+  missionPackageSchema,
+  predicateKindSchema,
   runLifecycleStateSchema,
   runIdSchema,
+  simulationStateSchema,
 } from '@codequest/domain';
 
 export const runnerCommandKindSchema = commandKindSchema;
@@ -23,9 +26,14 @@ export const runnerLogSchema = z.object({
 });
 export type RunnerLogSchema = z.infer<typeof runnerLogSchema>;
 
+export const runnerPredicateKindSchema = predicateKindSchema;
+export type RunnerPredicateKind = z.infer<typeof runnerPredicateKindSchema>;
+
 export const runnerCapabilitiesSchema = z.object({
   apiVersion: z.string().min(1),
   allowedCommandKinds: z.array(commandKindSchema).min(1),
+  /** Predicates read the world and return a value; they cost no command budget. */
+  allowedPredicateKinds: z.array(predicateKindSchema).default([]),
   allowLogs: z.boolean().default(true),
 });
 export type RunnerCapabilitiesSchema = z.infer<typeof runnerCapabilitiesSchema>;
@@ -36,6 +44,11 @@ export const hostToWorkerSchema = z.discriminatedUnion('type', [
     runId: runIdSchema,
     source: z.string().max(20_000),
     capabilities: runnerCapabilitiesSchema,
+    // Only missions that unlock predicates need these: the worker mirrors the
+    // simulation so `canMoveForward()` can answer mid-run. The host still
+    // reduces independently and stays authoritative for the result.
+    mission: missionPackageSchema.optional(),
+    initialState: simulationStateSchema.optional(),
     budgets: z.object({
       memoryBytes: z.number().int().positive(),
       maxInstructions: z.number().int().positive(),
@@ -56,6 +69,8 @@ export const workerToHostSchema = z.discriminatedUnion('type', [
     type: z.literal('commandRequested'),
     runId: runIdSchema,
     command: runnerCommandSchema,
+    /** The mirror's step count after applying, so the host can spot divergence. */
+    mirrorStepCount: z.number().int().nonnegative().optional(),
   }),
   z.object({ type: z.literal('log'), runId: runIdSchema, log: runnerLogSchema }),
   z.object({

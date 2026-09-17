@@ -115,6 +115,33 @@ export function MissionPreview({
     workerFinishedRef.current = false;
   }, []);
 
+  /**
+   * Guards against a runner that never answers — not against a long mission.
+   * It is re-armed every time a command actually plays, so a 20-command capstone
+   * animating for half a minute is fine while genuine silence still faults.
+   */
+  const armWatchdog = useCallback((deadlineMs: number) => {
+    if (watchdogRef.current !== null) window.clearTimeout(watchdogRef.current);
+    watchdogRef.current = window.setTimeout(() => {
+      watchdogRef.current = null;
+      const session = sessionRef.current;
+      if (!session) return;
+      const lifecycle = session.coordinator.state().lifecycle;
+      if (lifecycle === 'complete' || lifecycle === 'fault' || lifecycle === 'cancelled') return;
+      // A wedged runner is replaced outright, so the next Run starts clean.
+      stopSession();
+      workerRef.current?.terminate();
+      workerRef.current = null;
+      setRunnerReady(false);
+      getWorkerRef.current?.();
+      setFault({ type: 'runFault', code: 'timeout', reasonKey: 'run.runner-silent' });
+      setRunPhase('done');
+    }, deadlineMs + 8000);
+  }, [stopSession]);
+
+  const watchdogDeadlineRef = useRef(12000);
+  const getWorkerRef = useRef<(() => Worker) | null>(null);
+
   useEffect(() => {
     if (playbackActiveRef.current || queuedEvents.length === 0) {
       if (queuedEvents.length === 0 && workerFinishedRef.current) {
@@ -126,6 +153,8 @@ export function MissionPreview({
 
     const [nextEvent] = queuedEvents;
     playbackActiveRef.current = true;
+    // Progress: push the silence deadline out again.
+    armWatchdog(watchdogDeadlineRef.current);
     setEvents((current) => [...current, nextEvent]);
     if (nextEvent.type === 'runFault') {
       setFault(nextEvent);
@@ -150,7 +179,7 @@ export function MissionPreview({
         workerFinishedRef.current = true;
       }
     }, hasReducedEffects ? 0 : commandPlaybackDuration(nextEvent));
-  }, [hasReducedEffects, queuedEvents]);
+  }, [armWatchdog, hasReducedEffects, queuedEvents]);
 
   const handleWorkerMessage = useCallback((message: WorkerToHostSchema) => {
     // 'ready' arrives during warm-up, before any run exists.
@@ -253,29 +282,19 @@ export function MissionPreview({
         source,
         capabilities,
         budgets,
+        mission,
+        initialState,
       });
       worker.postMessage(prepared);
 
       // A runner that never answers must not leave a child watching "Running…"
       // forever. The worker reports its own failures; this covers the case
       // where it cannot even get that far.
-      watchdogRef.current = window.setTimeout(() => {
-        watchdogRef.current = null;
-        const session = sessionRef.current;
-        if (!session) return;
-        const lifecycle = session.coordinator.state().lifecycle;
-        if (lifecycle === 'complete' || lifecycle === 'fault' || lifecycle === 'cancelled') return;
-        // A wedged runner is replaced outright, so the next Run starts clean.
-        stopSession();
-        workerRef.current?.terminate();
-        workerRef.current = null;
-        setRunnerReady(false);
-        getWorker();
-        setFault({ type: 'runFault', code: 'timeout', reasonKey: 'run.runner-silent' });
-        setRunPhase('done');
-      }, budgets.deadlineMs + 8000);
+      watchdogDeadlineRef.current = budgets.deadlineMs;
+      getWorkerRef.current = getWorker;
+      armWatchdog(budgets.deadlineMs);
     },
-    [capabilities, getWorker, initialState, mission, stopSession],
+    [armWatchdog, capabilities, getWorker, initialState, mission, stopSession],
   );
 
   const handlePause = useCallback(() => {
@@ -362,6 +381,7 @@ export function MissionPreview({
       <MissionWorkspace
         avatarPresentation={avatarPresentation}
         commands={capabilities.allowedCommandKinds}
+        predicates={capabilities.allowedPredicateKinds}
         events={events}
         fault={fault}
         faultCopy={faultCopy}
