@@ -1,3 +1,7 @@
+import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import type { Group } from 'three';
+
 import type { MissionObjectSchema, SimulationStateSchema } from '@codequest/domain';
 
 import type { QualityTier } from '../quality/qualityTier';
@@ -5,6 +9,7 @@ import { defaultWorldConfig, worldFromCell } from '../world/worldTransform';
 
 export interface MissionObjectLayerProps {
   readonly objects: readonly MissionObjectSchema[];
+  readonly reducedEffects?: boolean;
   readonly quality: QualityTier;
   readonly state: SimulationStateSchema;
 }
@@ -12,11 +17,6 @@ export interface MissionObjectLayerProps {
 const goalPalette = {
   base: '#283044',
   glow: '#ffe166',
-};
-
-const collectiblePalette = {
-  base: '#8be9fd',
-  glow: '#7af0c2',
 };
 
 const blockerPalette = {
@@ -70,15 +70,17 @@ const GoalObjectMesh = ({
   state: SimulationStateSchema;
 }) => {
   const [x, y, z] = worldFromCell(object.cell);
-  const collected = isCollected(state, `goal-${object.id}`);
+  // The beacon is the reward for arriving: unlit until the avatar stands on it.
+  const reached =
+    state.avatar.cellX === object.cell.cellX && state.avatar.cellZ === object.cell.cellZ;
   return (
     <group position={[x, y, z]}>
       <mesh castShadow position={[0, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.65, 0.16, 8, 16]} />
         <meshStandardMaterial
-          color={goalPalette.glow}
+          color={reached ? goalPalette.glow : '#8a6d3a'}
           emissive="#d78520"
-          emissiveIntensity={collected ? 0 : 1.2}
+          emissiveIntensity={reached ? 1.6 : 0.08}
           flatShading
         />
       </mesh>
@@ -86,30 +88,55 @@ const GoalObjectMesh = ({
         <cylinderGeometry args={[0.32, 0.36, 0.1, 12]} />
         <meshStandardMaterial color={goalPalette.base} flatShading />
       </mesh>
-      {!collected && quality !== 'low' ? (
-        <pointLight color="#ffd65c" intensity={8} distance={4} position={[0, 0.8, 0]} />
+      {reached && quality !== 'low' ? (
+        <pointLight color="#ffd65c" intensity={9} distance={4.5} position={[0, 0.8, 0]} />
       ) : null}
     </group>
   );
 };
 
+/**
+ * A collectible reads as "pick me up": a gold gem hovering over a marked ring,
+ * turning slowly and bobbing. No glitter light — the ring on the ground is the
+ * cue, and it stays put when motion is reduced.
+ */
 const CollectibleObjectMesh = ({
   object,
   state,
+  reducedEffects,
 }: {
   object: Extract<MissionObjectSchema, { kind: 'collectible' }>;
   state: SimulationStateSchema;
+  reducedEffects: boolean;
 }) => {
   const [x, y, z] = worldFromCell(object.cell);
-  const collected = isCollected(state, object.id);
-  if (collected) return null;
+  const gem = useRef<Group>(null);
+  const hover = y + 0.62;
+  useFrame(({ clock }, delta) => {
+    if (reducedEffects || !gem.current) return;
+    gem.current.rotation.y += delta * 1.4;
+    gem.current.position.y = hover + Math.sin(clock.elapsedTime * 2.4 + x) * 0.06;
+  });
+  if (isCollected(state, object.id)) return null;
   return (
-    <group position={[x, y + 0.4, z]}>
-      <mesh castShadow>
-        <sphereGeometry args={[0.18, 10, 8]} />
-        <meshStandardMaterial color={collectiblePalette.base} emissive={collectiblePalette.glow} emissiveIntensity={0.9} flatShading />
+    <group position={[x, y, z]}>
+      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.28, 0.42, 20]} />
+        <meshStandardMaterial color="#ffd166" emissive="#ffb703" emissiveIntensity={0.45} />
       </mesh>
-      <pointLight color="#aef0ff" intensity={3} distance={2} position={[0, 0.1, 0]} />
+      <group ref={gem} position={[0, hover, 0]}>
+        <mesh castShadow>
+          <octahedronGeometry args={[0.26, 0]} />
+          <meshStandardMaterial
+            color="#ffd166"
+            emissive="#ff9f1c"
+            emissiveIntensity={0.3}
+            flatShading
+            metalness={0.25}
+            roughness={0.35}
+          />
+        </mesh>
+      </group>
     </group>
   );
 };
@@ -165,16 +192,30 @@ const InteractableObjectMesh = ({
   const [x, y, z] = worldFromCell(object.cell);
   const activeKey = `interactable.${object.id}.state`;
   const active = isFlagOn(state, activeKey) || object.initialState === 'on';
+  // The avatar uses this from the cell in front and then walks onto its cell,
+  // so the post stands in the cell's corner and a floor plate takes the centre:
+  // nothing solid is ever drawn where the avatar's body will be.
   return (
     <group position={[x, y, z]}>
-      <mesh castShadow position={[0, 0.45, 0]}>
-        <cylinderGeometry args={[0.3, 0.34, 0.9, 12]} />
-        <meshStandardMaterial color={interactablePalette.base} flatShading />
+      <mesh receiveShadow position={[0, 0.03, 0]}>
+        <cylinderGeometry args={[0.42, 0.46, 0.06, 16]} />
+        <meshStandardMaterial
+          color={active ? interactablePalette.glow : '#4a3d66'}
+          emissive={interactablePalette.glow}
+          emissiveIntensity={active ? 0.6 : 0}
+          flatShading
+        />
       </mesh>
-      <mesh castShadow position={[0, 0.95, 0]}>
-        <boxGeometry args={[0.6, 0.12, 0.6]} />
-        <meshStandardMaterial color={active ? interactablePalette.glow : '#5a4870'} flatShading />
-      </mesh>
+      <group position={[0.34, 0, 0.34]}>
+        <mesh castShadow position={[0, 0.32, 0]}>
+          <cylinderGeometry args={[0.13, 0.16, 0.64, 10]} />
+          <meshStandardMaterial color={interactablePalette.base} flatShading />
+        </mesh>
+        <mesh castShadow position={[0, 0.68, 0]}>
+          <boxGeometry args={[0.3, 0.1, 0.3]} />
+          <meshStandardMaterial color={active ? interactablePalette.glow : '#5a4870'} flatShading />
+        </mesh>
+      </group>
     </group>
   );
 };
@@ -234,6 +275,7 @@ const renderObject = (
   object: MissionObjectSchema,
   state: SimulationStateSchema,
   quality: QualityTier,
+  reducedEffects: boolean,
 ) => {
   switch (object.kind) {
     case 'spawn':
@@ -241,7 +283,14 @@ const renderObject = (
     case 'goal':
       return <GoalObjectMesh key={object.id} object={object} quality={quality} state={state} />;
     case 'collectible':
-      return <CollectibleObjectMesh key={object.id} object={object} state={state} />;
+      return (
+        <CollectibleObjectMesh
+          key={object.id}
+          object={object}
+          reducedEffects={reducedEffects}
+          state={state}
+        />
+      );
     case 'blocker':
       return <BlockerObjectMesh key={object.id} object={object} state={state} />;
     case 'interactable':
@@ -253,11 +302,16 @@ const renderObject = (
   }
 };
 
-export function MissionObjectLayer({ objects, quality, state }: MissionObjectLayerProps) {
+export function MissionObjectLayer({
+  objects,
+  quality,
+  state,
+  reducedEffects = false,
+}: MissionObjectLayerProps) {
   void defaultWorldConfig;
   return (
     <group name="mission-object-layer">
-      {objects.map((object) => renderObject(object, state, quality))}
+      {objects.map((object) => renderObject(object, state, quality, reducedEffects))}
     </group>
   );
 }

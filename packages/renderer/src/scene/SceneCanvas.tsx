@@ -56,7 +56,12 @@ export function SceneCanvas({
         gl={{ antialias: cfg.tier !== 'low', powerPreference: 'high-performance' }}
       >
         <EnvironmentLayer mission={mission} quality={quality} />
-        <MissionObjectLayer objects={mission.objects} quality={quality} state={state} />
+        <MissionObjectLayer
+          objects={mission.objects}
+          quality={quality}
+          reducedEffects={reducedEffects}
+          state={state}
+        />
         <AvatarEntity
           state={state}
           movementState={movementState}

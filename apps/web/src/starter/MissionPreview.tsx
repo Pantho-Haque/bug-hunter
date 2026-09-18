@@ -17,7 +17,7 @@ import type {
   RunFaultSchema,
   SimulationStateSchema,
 } from '@codequest/domain';
-import { describeRunOutcome } from '@codequest/editor';
+import { describeGuidance, describeRunOutcome, type Guidance } from '@codequest/editor';
 import type { SaveStore } from '@codequest/persistence';
 import {
   deriveAnimationState,
@@ -28,10 +28,19 @@ import {
 import { createInitialState, validateMissionObjectives } from '@codequest/simulation';
 
 import { useSoundscape } from '../audio/useSoundscape';
+import { CompletionDialog } from './CompletionDialog';
 import { MissionWorkspace } from './MissionWorkspace';
 import type { QualityPreference } from './SettingsDialog';
 
 export type RunPhase = 'idle' | 'running' | 'paused' | 'done';
+
+const REJECTED_SPEECH: Readonly<Record<string, string>> = {
+  'collect.nothing-here': "There's nothing here to pick up.",
+  'collect.already-collected': 'I already picked that up.',
+  'interact.nothing-here': "There's nothing here to use.",
+  'interact.wrong-facing': "I'm not facing it.",
+  'interact.out-of-range': "It's too far away.",
+};
 
 export interface MissionPreviewProps {
   readonly avatarPresentation: AvatarPresentation;
@@ -96,6 +105,7 @@ export function MissionPreview({
   const watchdogRef = useRef<number | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const [isRunnerReady, setRunnerReady] = useState(false);
+  const [celebrationOpen, setCelebrationOpen] = useState(false);
   const capabilities = useMemo(() => resolveCapabilities(mission), [mission]);
   // Every cue is synthesised; the ambient meadow only starts after the first
   // Run click, which is the user gesture browsers require for audio.
@@ -264,6 +274,7 @@ export function MissionPreview({
       setSimulation(initialState);
       setFault(null);
       setRunPhase('running');
+      setCelebrationOpen(false);
       sounds.play('ui');
 
       const runId = `run-${Date.now()}`;
@@ -344,6 +355,7 @@ export function MissionPreview({
   }, []);
 
   const handleResetScene = useCallback(() => {
+    setCelebrationOpen(false);
     stopSession();
     setEvents([]);
     setQueuedEvents([]);
@@ -352,19 +364,33 @@ export function MissionPreview({
     setRunPhase('idle');
   }, [initialState, stopSession]);
 
+  const objectiveIssues = useMemo(
+    () => (runPhase === 'done' && !fault ? validateMissionObjectives(mission, simulation).issues : []),
+    [fault, mission, runPhase, simulation],
+  );
   const outcome = useMemo(() => {
     if (runPhase !== 'done' || fault) return null;
-    return describeRunOutcome(validateMissionObjectives(mission, simulation).issues, {
-      agentName,
-      goal: mission.briefing.goal,
+    return describeRunOutcome(objectiveIssues, { agentName, goal: mission.briefing.goal });
+  }, [agentName, fault, mission, objectiveIssues, runPhase]);
+  // Concrete next steps, from what the simulation found missing.
+  const guidance: Guidance | null = useMemo(() => {
+    if (outcome?.status !== 'incomplete') return null;
+    return describeGuidance({
+      mission,
+      state: simulation,
+      issues: objectiveIssues,
+      lastEvent: events[events.length - 1],
     });
-  }, [agentName, fault, mission, runPhase, simulation]);
+  }, [events, mission, objectiveIssues, outcome, simulation]);
 
   useEffect(() => {
     if (outcome?.status !== 'success') return;
     sounds.play('success');
     onCompleted(mission.identity.levelId);
-  }, [mission, onCompleted, outcome, sounds]);
+    // Let the beacon light up on screen before the celebration covers it.
+    const timer = window.setTimeout(() => setCelebrationOpen(true), hasReducedEffects ? 0 : 900);
+    return () => window.clearTimeout(timer);
+  }, [hasReducedEffects, mission, onCompleted, outcome, sounds]);
 
   // Any terminal state retires the watchdog; otherwise it would fire later and
   // replace a finished run's result with a false timeout.
@@ -376,6 +402,20 @@ export function MissionPreview({
   }, [runPhase]);
 
   const faultCopy = fault ? FAULT_PRESENTATIONS[fault.code] : null;
+
+  // The avatar speaks for itself when something goes wrong, so a child is not
+  // left staring at a character standing in the wrong place.
+  const lastEvent = events[events.length - 1];
+  const speech = (() => {
+    if (fault) return 'Something went wrong with my code. Can you check it?';
+    if (outcome?.status === 'success') return 'We did it!';
+    if (outcome?.status === 'incomplete') return guidance?.headline ?? 'I stopped here. What should I do now?';
+    if (lastEvent?.type === 'commandRejected') {
+      return REJECTED_SPEECH[lastEvent.reasonKey] ?? 'Oops! Something is in the way.';
+    }
+    if (runPhase === 'idle' && events.length === 0) return 'Tell me where to go!';
+    return null;
+  })();
 
   const isPlaying = runPhase === 'running' || runPhase === 'paused';
   const movementState = isPlaying
@@ -400,6 +440,12 @@ export function MissionPreview({
             </button>
           )}
         />
+        {speech ? (
+          <p className="agent-speech" key={speech} role="status">
+            <span className="agent-speech__name">{agentName}</span>
+            {speech}
+          </p>
+        ) : null}
       </div>
       <MissionWorkspace
         avatarPresentation={avatarPresentation}
@@ -408,6 +454,7 @@ export function MissionPreview({
         events={events}
         fault={fault}
         faultCopy={faultCopy}
+        guidance={guidance}
         mission={mission}
         onPause={handlePause}
         onResetScene={handleResetScene}
@@ -421,6 +468,18 @@ export function MissionPreview({
         outcome={outcome}
         runPhase={runPhase}
         store={store}
+      />
+      <CompletionDialog
+        agentName={agentName}
+        missionTitle={mission.identity.title}
+        nextMissionTitle={nextMission?.title}
+        onClose={() => setCelebrationOpen(false)}
+        onMap={onReturnToMap}
+        onNext={onNextMission}
+        onReplay={handleResetScene}
+        open={celebrationOpen}
+        reflectionQuestion={mission.completion.reflectionQuestion}
+        rewards={mission.rewards.map((reward) => reward.label)}
       />
     </section>
   );

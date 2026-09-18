@@ -44,6 +44,10 @@ const occupiedCells = (
         set.add(cellKey(cell));
       }
     }
+    // Decor is solid in the simulation, so it is solid here too.
+    if (obj.kind === 'decor') {
+      for (const cell of obj.cells) set.add(cellKey(cell));
+    }
   }
   return set;
 };

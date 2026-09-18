@@ -25,6 +25,8 @@ const MAX_DISTANCE = 12;
 const MIN_ELEVATION = Math.PI * 0.12;
 const MAX_ELEVATION = Math.PI * 0.43;
 const MAX_FOCUS_OFFSET = 4;
+// Blockers are a 1-unit box plus a thin cap (see MissionObjectLayer).
+const BLOCKER_TOP = 1.15;
 
 /** Returns the distance to the first blocker intersecting the camera sight-line. */
 export const occludedCameraDistance = (
@@ -57,6 +59,12 @@ export const occludedCameraDistance = (
     const enter = Math.max(xNear, zNear);
     const exit = Math.min(xFar, zFar);
     if (enter <= exit && exit >= 0 && enter <= 1) {
+      // The slab test is in the ground plane; an elevated camera looking over a
+      // low wall is not occluded by it, so also require the sight line to be
+      // below the blocker's top where it crosses the cell.
+      const heightAtEntry =
+        target.y + (cameraPosition.y - target.y) * Math.max(0, Math.min(1, enter));
+      if (heightAtEntry > BLOCKER_TOP) continue;
       const distance = Math.max(0, enter) * length;
       if (nearest === undefined || distance < nearest) nearest = distance;
     }
@@ -69,8 +77,11 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
   const azimuthRef = useRef<number>(HOME_AZIMUTH);
   const distanceRef = useRef<number>(HOME_DISTANCE);
   const elevationRef = useRef<number>(HOME_ELEVATION);
-  const draggingRef = useRef(false);
-  const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
+  // Input writes targets; the frame loop eases the live values toward them, so
+  // mouse, trackpad and touch all feel the same and nothing snaps.
+  const azimuthTargetRef = useRef<number>(HOME_AZIMUTH);
+  const distanceTargetRef = useRef<number>(HOME_DISTANCE);
+  const elevationTargetRef = useRef<number>(HOME_ELEVATION);
   const focusOffsetRef = useRef(new Vector3(0, 0, -HOME_LOOK_AHEAD));
   const desiredPosition = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
@@ -95,6 +106,9 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
     azimuthRef.current = HOME_AZIMUTH;
     distanceRef.current = HOME_DISTANCE;
     elevationRef.current = HOME_ELEVATION;
+    azimuthTargetRef.current = HOME_AZIMUTH;
+    distanceTargetRef.current = HOME_DISTANCE;
+    elevationTargetRef.current = HOME_ELEVATION;
     focusOffsetRef.current.set(0, 0, -HOME_LOOK_AHEAD);
     desiredPosition.current.set(0, Math.sin(HOME_ELEVATION) * HOME_DISTANCE, Math.cos(HOME_ELEVATION) * HOME_DISTANCE);
     desiredTarget.current.set(0, 0.9, 0);
@@ -106,6 +120,11 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
 
   useEffect(() => {
     const canvas = gl.domElement;
+    // Without this, a touch drag scrolls the page instead of orbiting.
+    canvas.style.touchAction = 'none';
+    const pointers = new Map<number, { x: number; y: number }>();
+    let pinchDistance: number | null = null;
+
     const avatarPosition = () =>
       new Vector3(
         state.avatar.cellX * defaultWorldConfig.cellSize,
@@ -126,7 +145,8 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
         : undefined;
     };
 
-    const setFocusFromCursor = (event: PointerEvent | WheelEvent, strength = 1) => {
+    // Zooming leans the view toward the cursor a little, like a map app.
+    const nudgeFocusToward = (event: WheelEvent, strength: number) => {
       const hit = worldAtCursor(event);
       if (!hit) return;
       const offset = hit.sub(avatarPosition());
@@ -135,33 +155,54 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
       focusOffsetRef.current.lerp(offset, strength);
     };
 
+    const clampElevation = (value: number) =>
+      Math.max(MIN_ELEVATION, Math.min(MAX_ELEVATION, value));
+    const clampDistance = (value: number) =>
+      Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, value));
+
     const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0) return;
-      setFocusFromCursor(event);
-      draggingRef.current = true;
-      lastPointerRef.current = { x: event.clientX, y: event.clientY };
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       canvas.setPointerCapture(event.pointerId);
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinchDistance = Math.hypot(a.x - b.x, a.y - b.y);
+      }
       canvas.style.cursor = 'grabbing';
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!draggingRef.current) return;
-      const last = lastPointerRef.current;
+      const last = pointers.get(event.pointerId);
       if (!last) return;
-      const dx = event.clientX - last.x;
-      const dy = event.clientY - last.y;
-      lastPointerRef.current = { x: event.clientX, y: event.clientY };
-      azimuthRef.current -= dx * 0.005;
-      elevationRef.current = Math.max(
-        MIN_ELEVATION,
-        Math.min(MAX_ELEVATION, elevationRef.current + dy * 0.005),
-      );
+      const current = { x: event.clientX, y: event.clientY };
+      pointers.set(event.pointerId, current);
+
+      if (pointers.size === 2 && pinchDistance !== null) {
+        const [a, b] = [...pointers.values()];
+        const spread = Math.hypot(a.x - b.x, a.y - b.y);
+        if (spread > 0) {
+          distanceTargetRef.current = clampDistance(
+            distanceTargetRef.current * (pinchDistance / spread),
+          );
+          pinchDistance = spread;
+        }
+        return;
+      }
+      if (pointers.size !== 1) return;
+
+      // Scaled by the canvas size so a full drag is the same turn on a phone,
+      // a trackpad and a large monitor.
+      const rect = canvas.getBoundingClientRect();
+      const dx = (current.x - last.x) / Math.max(1, rect.width);
+      const dy = (current.y - last.y) / Math.max(1, rect.height);
+      azimuthTargetRef.current -= dx * Math.PI * 1.6;
+      elevationTargetRef.current = clampElevation(elevationTargetRef.current + dy * Math.PI * 0.9);
     };
 
     const onPointerUp = (event: PointerEvent) => {
-      draggingRef.current = false;
-      lastPointerRef.current = null;
-      canvas.style.cursor = 'grab';
+      pointers.delete(event.pointerId);
+      if (pointers.size < 2) pinchDistance = null;
+      if (pointers.size === 0) canvas.style.cursor = 'grab';
       try {
         canvas.releasePointerCapture(event.pointerId);
       } catch {
@@ -171,14 +212,16 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
 
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-      const previousDistance = distanceRef.current;
-      const nextDistance = Math.max(
-        MIN_DISTANCE,
-        Math.min(MAX_DISTANCE, previousDistance + event.deltaY * 0.006),
-      );
-      distanceRef.current = nextDistance;
-      const zoomProgress = 1 - nextDistance / previousDistance;
-      setFocusFromCursor(event, zoomProgress);
+      // Normalise line/page deltas to pixels; a trackpad pinch arrives as a
+      // wheel event with ctrlKey and wants a stronger response.
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1;
+      const delta = Math.max(-120, Math.min(120, event.deltaY * unit));
+      const factor = Math.exp(delta * (event.ctrlKey ? 0.01 : 0.0035));
+      const previous = distanceTargetRef.current;
+      const next = clampDistance(previous * factor);
+      distanceTargetRef.current = next;
+      const zoomProgress = 1 - next / previous;
+      if (zoomProgress > 0) nudgeFocusToward(event, zoomProgress * 0.6);
     };
 
     canvas.style.cursor = 'grab';
@@ -194,10 +237,17 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
       canvas.removeEventListener('pointercancel', onPointerUp);
       canvas.removeEventListener('wheel', onWheel);
       canvas.style.cursor = '';
+      canvas.style.touchAction = '';
     };
   }, [camera, gl, state.avatar.cellX, state.avatar.cellZ]);
 
   useFrame((_, delta) => {
+    // Ease the live camera values toward their input targets.
+    const ease = reducedEffects ? 1 : 1 - Math.exp(-10 * delta);
+    azimuthRef.current += (azimuthTargetRef.current - azimuthRef.current) * ease;
+    elevationRef.current += (elevationTargetRef.current - elevationRef.current) * ease;
+    distanceRef.current += (distanceTargetRef.current - distanceRef.current) * ease;
+
     const x = state.avatar.cellX * defaultWorldConfig.cellSize;
     const z = state.avatar.cellZ * defaultWorldConfig.cellSize;
     if (!hasAvatarAnchor.current) {

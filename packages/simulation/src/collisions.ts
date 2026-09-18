@@ -79,6 +79,10 @@ export const attemptMove = (
       reasonKey: obstacle.reasonKey,
     };
   }
+  // Decor is scenery the child can see, so walking through it reads as a bug.
+  if (obstacle && obstacle.kind === 'decor') {
+    return { nextAvatar: state.avatar, blocked: true, reasonKey: 'scenery.blocks' };
+  }
   return {
     nextAvatar: { ...state.avatar, cellX: target.cellX, cellZ: target.cellZ },
     blocked: false,

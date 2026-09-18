@@ -61,20 +61,6 @@ export const m13TidalSteps: MissionPackageSchema = {
       reasonKey: 'water.blocks',
     },
     {
-      id: 'decor-stones-1',
-      label: 'Stepping stones',
-      required: false,
-      kind: 'decor',
-      cells: [
-        { cellX: 1, cellZ: 0 },
-        { cellX: 2, cellZ: 0 },
-        { cellX: 3, cellZ: 0 },
-        { cellX: 4, cellZ: 0 },
-      ],
-      assetId: 'asset.lagoon.stepping-stone',
-      interactive: false,
-    },
-    {
       id: 'shell-1',
       label: 'Tide shell',
       required: true,

@@ -61,10 +61,11 @@ describe('simulation: M01 deterministic replay', () => {
 
   it('replays a mixed turn-forward sequence without rejecting', () => {
     const commands: CommandInput[] = [
+      // Turns south, away from the grass tuft at (1,-1): scenery is solid.
       cmd('moveForward', 1),
-      cmd('turnLeft', 2),
+      cmd('turnRight', 2),
       cmd('moveForward', 3),
-      cmd('turnRight', 4),
+      cmd('turnLeft', 4),
       cmd('moveForward', 5),
       cmd('moveForward', 6),
       cmd('turnLeft', 7),
@@ -79,9 +80,9 @@ describe('simulation: M01 deterministic replay', () => {
       .filter((kind): kind is CommandInput['kind'] => Boolean(kind));
     expect(kinds).toEqual([
       'moveForward',
-      'turnLeft',
-      'moveForward',
       'turnRight',
+      'moveForward',
+      'turnLeft',
       'moveForward',
       'moveForward',
       'turnLeft',

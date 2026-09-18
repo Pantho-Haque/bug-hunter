@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import type { FaultPresentation } from '@codequest/code-runner';
 import type { MissionPackageSchema, RunEventSchema, RunFaultSchema } from '@codequest/domain';
-import type { RunOutcome } from '@codequest/editor';
+import type { Guidance, RunOutcome } from '@codequest/editor';
 import { newLevelCode, type SaveStore } from '@codequest/persistence';
 import type { AvatarPresentation } from '@codequest/renderer';
 
@@ -19,6 +19,7 @@ export interface MissionWorkspaceProps {
   readonly events: readonly RunEventSchema[];
   readonly fault: RunFaultSchema | null;
   readonly faultCopy: FaultPresentation | null;
+  readonly guidance: Guidance | null;
   readonly outcome: RunOutcome | null;
   readonly runPhase: RunPhase;
   /** False while the sandboxed runner is still booting. */
@@ -84,6 +85,7 @@ export function MissionWorkspace({
   events,
   fault,
   faultCopy,
+  guidance,
   isRunnerReady,
   nextMissionTitle,
   onNextMission,
@@ -250,11 +252,6 @@ export function MissionWorkspace({
 
         {outcome ? (
           <div className={`run-outcome run-outcome--${outcome.status}`} role="status">
-            {outcome.status === 'success' ? (
-              <div aria-hidden="true" className="run-outcome__confetti">
-                {Array.from({ length: 14 }, (_, i) => <i key={i} style={{ ['--i' as string]: i }} />)}
-              </div>
-            ) : null}
             <p className="run-outcome__headline">
               {outcome.status === 'success' ? (
                 <>
@@ -264,7 +261,18 @@ export function MissionWorkspace({
                 outcome.headline
               )}
             </p>
-            <p>{outcome.detail}</p>
+            {guidance ? (
+              <>
+                <p className="run-outcome__lead">{agentName} says:</p>
+                <ul className="run-outcome__steps">
+                  {guidance.steps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p>{outcome.detail}</p>
+            )}
             {outcome.status === 'success' && mission.rewards.length > 0 ? (
               <p className="run-outcome__reward">
                 <span aria-hidden="true">★</span> You earned{' '}
