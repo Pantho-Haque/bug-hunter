@@ -17,6 +17,9 @@ export interface FollowCameraRigProps {
 const HOME_DISTANCE = 7;
 const HOME_ELEVATION = Math.atan2(4.5, HOME_DISTANCE);
 const HOME_LOOK_AHEAD = 1.8;
+// π puts the camera south of the avatar looking north: north is up on screen and
+// east is right, the same orientation as the minimap.
+const HOME_AZIMUTH = Math.PI;
 const MIN_DISTANCE = 3.5;
 const MAX_DISTANCE = 12;
 const MIN_ELEVATION = Math.PI * 0.12;
@@ -63,12 +66,12 @@ export const occludedCameraDistance = (
 
 export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: FollowCameraRigProps) {
   const { camera, gl } = useThree();
-  const azimuthRef = useRef<number>(0);
+  const azimuthRef = useRef<number>(HOME_AZIMUTH);
   const distanceRef = useRef<number>(HOME_DISTANCE);
   const elevationRef = useRef<number>(HOME_ELEVATION);
   const draggingRef = useRef(false);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
-  const focusOffsetRef = useRef(new Vector3(0, 0, HOME_LOOK_AHEAD));
+  const focusOffsetRef = useRef(new Vector3(0, 0, -HOME_LOOK_AHEAD));
   const desiredPosition = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
   const currentTarget = useRef(new Vector3());
@@ -89,11 +92,11 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
   }, [camera]);
 
   useEffect(() => {
-    azimuthRef.current = 0;
+    azimuthRef.current = HOME_AZIMUTH;
     distanceRef.current = HOME_DISTANCE;
     elevationRef.current = HOME_ELEVATION;
-    focusOffsetRef.current.set(0, 0, HOME_LOOK_AHEAD);
-    desiredPosition.current.set(0, Math.sin(HOME_ELEVATION) * HOME_DISTANCE, -Math.cos(HOME_ELEVATION) * HOME_DISTANCE);
+    focusOffsetRef.current.set(0, 0, -HOME_LOOK_AHEAD);
+    desiredPosition.current.set(0, Math.sin(HOME_ELEVATION) * HOME_DISTANCE, Math.cos(HOME_ELEVATION) * HOME_DISTANCE);
     desiredTarget.current.set(0, 0.9, 0);
     currentTarget.current.copy(desiredTarget.current);
     hasAvatarAnchor.current = false;

@@ -12,6 +12,9 @@ export interface SettingsDialogProps {
   readonly onAvatarPresentationChange: (presentation: AvatarPresentation) => void;
   readonly onQualityChange: (quality: QualityPreference) => void;
   readonly onReducedEffectsChange: (reduced: boolean) => void;
+  /** 0 is silent. Sounds are feedback only; nothing in the game needs them. */
+  readonly soundVolume: number;
+  readonly onSoundVolumeChange: (volume: number) => void;
   readonly onExport: () => void;
   readonly onImport: (file: File) => void;
   readonly onClose: () => void;
@@ -25,6 +28,8 @@ export function SettingsDialog({
   onAvatarPresentationChange,
   onQualityChange,
   onReducedEffectsChange,
+  soundVolume,
+  onSoundVolumeChange,
   onExport,
   onImport,
   onClose,
@@ -59,7 +64,7 @@ export function SettingsDialog({
 
         <fieldset className="settings-group">
           <legend>Character</legend>
-          <p>Choose how Nova looks. This never changes what Nova can do.</p>
+          <p>Pick your character. Both can do the same things.</p>
           <div className="settings-choice-row">
             {(['girl', 'boy'] as const).map((presentation) => (
               <label key={presentation} className="settings-choice">
@@ -69,7 +74,7 @@ export function SettingsDialog({
                   onChange={() => onAvatarPresentationChange(presentation)}
                   type="radio"
                 />
-                {presentation === 'girl' ? 'Girl preset' : 'Boy preset'}
+                {presentation === 'girl' ? 'Nova (girl)' : 'Kai (boy)'}
               </label>
             ))}
           </div>
@@ -102,6 +107,33 @@ export function SettingsDialog({
               type="checkbox"
             />
             Reduce camera and character motion
+          </label>
+        </fieldset>
+
+        <fieldset className="settings-group">
+          <legend>Sounds</legend>
+          <p>Small sounds for each step, plus a quiet meadow in the background. Nothing in the game needs sound to play.</p>
+          <label className="settings-toggle">
+            <input
+              checked={soundVolume > 0}
+              onChange={(event) => onSoundVolumeChange(event.target.checked ? 70 : 0)}
+              type="checkbox"
+            />
+            Play sounds
+          </label>
+          <label className="settings-select-label" htmlFor="sound-volume">
+            Volume
+            <input
+              aria-valuetext={`${soundVolume} percent`}
+              disabled={soundVolume === 0}
+              id="sound-volume"
+              max={100}
+              min={0}
+              onChange={(event) => onSoundVolumeChange(Number(event.target.value))}
+              step={10}
+              type="range"
+              value={soundVolume}
+            />
           </label>
         </fieldset>
 

@@ -13,7 +13,8 @@
     "lint": "pnpm -r lint && node scripts/check-package-boundaries.mjs",
     "hostile-check": "node scripts/hostile-code-harness.mjs",
     "perf-check": "node scripts/performance-harness.mjs",
-    "copy-check": "node scripts/copy-and-access-audit.mjs"
+    "copy-check": "node scripts/copy-and-access-audit.mjs",
+    "progression-check": "node scripts/progression-check.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.10.0",

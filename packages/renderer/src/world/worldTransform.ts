@@ -23,14 +23,21 @@ export const worldFromCell = (
   cell.cellZ * config.cellSize + config.originOffsetZ,
 ];
 
+/**
+ * Yaw for the shipped rig, whose visual forward is +Z (rendered facing the
+ * camera at yaw 0 with the camera south of it). Rotating (0,0,1) by θ about Y
+ * gives (sin θ, 0, cos θ), so north (0,-1) is π, east (1,0) is π/2, south is 0
+ * and west is -π/2. The first version had north and south swapped, which made
+ * the avatar walk backwards on the very first mission.
+ */
 export const facingToRadians = (facing: DirectionSchema): number => {
   switch (facing) {
     case 'north':
-      return 0;
+      return Math.PI;
     case 'east':
       return Math.PI / 2;
     case 'south':
-      return Math.PI;
+      return 0;
     case 'west':
       return -Math.PI / 2;
   }

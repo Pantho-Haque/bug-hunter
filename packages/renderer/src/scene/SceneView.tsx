@@ -74,17 +74,16 @@ export function SceneView(props: SceneViewProps) {
         />
         <div className="scene-view-overlay">
           <div className="scene-view-mode-toggle" role="group" aria-label="Camera controls">
-            <button type="button" onClick={resetCamera} aria-label="Reset camera">
-              ↺ Reset view
+            <button type="button" onClick={resetCamera}>
+              <span aria-hidden="true">↺</span> Reset view
             </button>
             <button
               type="button"
               aria-expanded={isMinimapOpen}
               aria-controls={`minimap-${mission.identity.levelId}`}
-              aria-label={isMinimapOpen ? 'Hide minimap' : 'Show minimap'}
               onClick={() => setMinimapOpen((value) => !value)}
             >
-              Map
+              {isMinimapOpen ? 'Hide top view' : 'Top view'}
             </button>
           </div>
           {previewEnabled && onPreviewNudge ? (

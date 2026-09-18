@@ -10,17 +10,17 @@ Result: **all fixtures contained**
 
 | Fixture | Outcome | Fault | Commands released | Time |
 |---|---|---|---:|---:|
-| infinite loop | contained | `timeout` | 0 | 3.4s |
-| unbounded recursion | contained | `memory` | 0 | 0.5s |
-| command flood | contained | `commandLimit` | 6 | 0.2s |
+| infinite loop | contained | `timeout` | 0 | 3.5s |
+| unbounded recursion | contained | `memory` | 0 | 0.4s |
+| command flood | contained | `commandLimit` | 6 | 0.3s |
 | blocked global: fetch | contained | `blockedApi` | 0 | 0.1s |
 | blocked global: XMLHttpRequest | contained | `blockedApi` | 0 | 0.1s |
 | blocked global: importScripts | contained | `blockedApi` | 0 | 0.1s |
 | escape attempt: postMessage to host | contained | `blockedApi` | 0 | 0.1s |
 | escape attempt: reach the DOM | contained | `blockedApi` | 0 | 0.1s |
-| escape attempt: reach storage | contained | `blockedApi` | 0 | 0.1s |
-| allocation growth | contained | `memory` | 0 | 4.4s |
-| syntax error | contained | `syntax` | 0 | 1.4s |
+| escape attempt: reach storage | contained | `blockedApi` | 0 | 0.0s |
+| allocation growth | contained | `memory` | 0 | 4.7s |
+| syntax error | contained | `syntax` | 0 | 1.3s |
 | locked command for this mission | contained | `blockedApi` | 0 | 0.0s |
 | locked predicate for this mission | contained | `blockedApi` | 0 | 0.0s |
 | recovery after hostile runs | contained | `runFinished` | 1 | -s |

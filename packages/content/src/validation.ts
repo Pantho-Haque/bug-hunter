@@ -194,7 +194,7 @@ export const validateMissionPackage = (
   const spawn = mission.objects.find((o) => o.kind === 'spawn');
   const goal = mission.objects.find((o) => o.kind === 'goal');
   if (spawn && goal && (spawn.kind === 'spawn' && goal.kind === 'goal')) {
-    const reachableFromSpawn = bfs(spawn.cell, blocked);
+    const reachableFromSpawn = bfs(spawn.cell, blocked, missionBounds(mission));
     if (!reachableFromSpawn.has(cellKey(goal.cell))) {
       issues.push({
         code: 'unreachable-goal',
@@ -230,11 +230,42 @@ export const validateMissionPackage = (
   return { ok: issues.length === 0, issues };
 };
 
-const MAX_BFS_RADIUS = 256;
+interface Bounds {
+  readonly minX: number;
+  readonly maxX: number;
+  readonly minZ: number;
+  readonly maxZ: number;
+}
+
+/**
+ * The mission's footprint plus one cell of margin — enough to walk around any
+ * blocker on its edge. Searching the open ground beyond it proves nothing and,
+ * unbounded, cost a quarter of a million cells per mission.
+ */
+const missionBounds = (mission: MissionPackageSchema): Bounds => {
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+  const consider = (cell: { readonly cellX: number; readonly cellZ: number }) => {
+    minX = Math.min(minX, cell.cellX);
+    maxX = Math.max(maxX, cell.cellX);
+    minZ = Math.min(minZ, cell.cellZ);
+    maxZ = Math.max(maxZ, cell.cellZ);
+  };
+  consider(mission.startState.avatar);
+  for (const obj of mission.objects) {
+    if ('cell' in obj) consider(obj.cell);
+    if ('cells' in obj) for (const cell of obj.cells) consider(cell);
+    if ('occupiedCells' in obj) for (const cell of obj.occupiedCells) consider(cell);
+  }
+  return { minX: minX - 1, maxX: maxX + 1, minZ: minZ - 1, maxZ: maxZ + 1 };
+};
 
 const bfs = (
   start: { readonly cellX: number; readonly cellZ: number },
   blocked: ReadonlySet<string>,
+  bounds: Bounds,
 ): Set<string> => {
   const visited = new Set<string>([cellKey(start)]);
   let head = 0;
@@ -247,14 +278,16 @@ const bfs = (
   ];
   while (head < queue.length) {
     const current = queue[head++];
-    if (
-      Math.abs(current.cellX - start.cellX) > MAX_BFS_RADIUS ||
-      Math.abs(current.cellZ - start.cellZ) > MAX_BFS_RADIUS
-    ) {
-      continue;
-    }
     for (const offset of offsets) {
       const next = { cellX: current.cellX + offset.cellX, cellZ: current.cellZ + offset.cellZ };
+      if (
+        next.cellX < bounds.minX ||
+        next.cellX > bounds.maxX ||
+        next.cellZ < bounds.minZ ||
+        next.cellZ > bounds.maxZ
+      ) {
+        continue;
+      }
       const key = cellKey(next);
       if (visited.has(key) || blocked.has(key)) continue;
       visited.add(key);

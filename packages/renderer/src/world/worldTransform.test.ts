@@ -101,14 +101,26 @@ describe('renderer / worldTransform', () => {
 
   it('returns avatar transform from simulation state', () => {
     const state = { ...mission.startState, avatar: { cellX: 2, cellZ: 1, facing: 'north' as const } };
-    expect(avatarTransform(state)).toEqual({ position: [2, 0, 1], rotationY: 0 });
+    expect(avatarTransform(state)).toEqual({ position: [2, 0, 1], rotationY: Math.PI });
   });
 
   it('computes yaw rotation from facing direction', () => {
-    expect(facingToRadians('north')).toBe(0);
+    expect(facingToRadians('north')).toBeCloseTo(Math.PI);
     expect(facingToRadians('east')).toBeCloseTo(Math.PI / 2);
-    expect(facingToRadians('south')).toBeCloseTo(Math.PI);
+    expect(facingToRadians('south')).toBe(0);
     expect(facingToRadians('west')).toBeCloseTo(-Math.PI / 2);
+  });
+
+  it('turns the rig to face the direction it will move in', () => {
+    // The rig's forward is +Z. Rotating it by the yaw must point it along the
+    // simulation's direction vector, or the avatar walks backwards.
+    for (const facing of ['north', 'east', 'south', 'west'] as const) {
+      const yaw = facingToRadians(facing);
+      const forward = [Math.sin(yaw), Math.cos(yaw)];
+      const [dx, dz] = directionVector(facing);
+      expect(forward[0]).toBeCloseTo(dx);
+      expect(forward[1]).toBeCloseTo(dz);
+    }
   });
 
   it('returns facing unit vector', () => {

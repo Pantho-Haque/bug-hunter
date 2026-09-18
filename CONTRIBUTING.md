@@ -66,7 +66,25 @@ Chrome when there is one and fall back to Playwright's Chromium:
   reduced motion. Reading level and fault copy are unit tests instead, so they run with
   `pnpm test`.
 
+- `pnpm progression-check` — a fresh profile plays all 30 missions in order through
+  the production build: runner, playback, unlock chain and per-mission URLs. This is
+  the Phase 12 "every level succeeds" gate.
+
 Each writes a dated report under `docs/evidence/`.
+
+## Routes
+
+The app has two routes and no router library: `/` is the map and `/mission/<levelId>`
+is a mission (`apps/web/src/starter/useRoute.ts`). A deep link to a locked mission is
+sent back to the map with a plain explanation, so a typed URL cannot skip the
+progression. The service worker serves the app shell for any path, so reloads and
+offline deep links work.
+
+## Sound
+
+All audio is synthesised with the Web Audio API in `apps/web/src/audio/` — there are
+no audio assets and nothing is fetched. Sounds are feedback only; no required action
+depends on hearing them, and the Settings toggle silences everything.
 
 ## Adding a new dependency between packages
 

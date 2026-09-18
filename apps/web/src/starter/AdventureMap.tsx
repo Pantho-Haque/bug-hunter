@@ -12,15 +12,12 @@ interface AdventureMapProps {
 interface MissionRow {
   readonly title: string;
   readonly task: string;
-  readonly levelId: string | undefined;
-  readonly state: 'done' | 'ready' | 'locked' | 'planned';
+  readonly levelId: string;
+  readonly number: number;
+  readonly state: 'done' | 'ready' | 'locked';
 }
 
-/**
- * Meadow rows come from the mission registry, so the map can never promise a
- * mission the content package does not actually ship. Later zones are still
- * authored prose because their mission packages do not exist yet.
- */
+/** Rows come from the mission registry, so the map can never promise or hide a mission the content package disagrees with. */
 const zoneRows = (registryZoneId: string, completedLevelIds: readonly string[]): MissionRow[] =>
   contentRegistry.listMissionsByZone(toZoneId(registryZoneId)).map((mission) => {
     const id = mission.identity.levelId;
@@ -31,24 +28,16 @@ const zoneRows = (registryZoneId: string, completedLevelIds: readonly string[]):
       title: mission.identity.title,
       task: mission.briefing.goal,
       levelId: id,
+      number: Number.parseInt(id.slice(1), 10),
       state: completedLevelIds.includes(id) ? 'done' : unlocked ? 'ready' : 'locked',
     };
   });
 
-const plannedRows = (zone: Zone): MissionRow[] =>
-  zone.missions.map((mission) => ({
-    title: mission.title,
-    task: mission.task,
-    levelId: undefined,
-    state: 'planned' as const,
-  }));
-
 interface Zone {
   concept: string;
   id: string;
-  /** The content registry's zone id, when missions for it exist. */
+  /** The content registry's zone id. */
   registryZoneId: string;
-  missions: { task: string; title: string }[];
   name: string;
   number: number;
   story: string;
@@ -59,8 +48,6 @@ const zones: Zone[] = [
     concept: 'Sequences · turns · interactions',
     id: 'meadow',
     registryZoneId: 'meadow-of-moves',
-    // Rendered from the content registry; see meadowRows().
-    missions: [],
     name: 'Meadow of Moves',
     number: 1,
     story: 'Wake the street beacons and learn how each command changes Nova’s route.',
@@ -69,14 +56,6 @@ const zones: Zone[] = [
     concept: 'Functions · parameters · reuse',
     id: 'forest',
     registryZoneId: 'echo-forest',
-    missions: [
-      { task: 'Turn a repeated path into a function.', title: 'Name the Trail' },
-      { task: 'Reuse one route to wake two lights.', title: 'Two Sleeping Fireflies' },
-      { task: 'Ring two bells with reusable code.', title: 'Function Door' },
-      { task: 'Share a path, then change each ending.', title: 'Pack a Path' },
-      { task: 'Send different distances as parameters.', title: 'Give It a Number' },
-      { task: 'Rescue three fireflies around a tree.', title: 'Echo Checkpoint' },
-    ],
     name: 'Echo Forest',
     number: 2,
     story: 'Name useful paths and reuse them to guide fireflies through the forest.',
@@ -85,14 +64,6 @@ const zones: Zone[] = [
     concept: 'For loops · while loops · patterns',
     id: 'lagoon',
     registryZoneId: 'loop-lagoon',
-    missions: [
-      { task: 'Repeat four steps to reach the shell.', title: 'Tidal Steps' },
-      { task: 'Move and light three ocean buoys.', title: 'Light the Buoys' },
-      { task: 'Loop around every side of the dock.', title: 'Square Dock' },
-      { task: 'Keep moving only while the path is safe.', title: 'Stop at the Reef' },
-      { task: 'Collect pearls on alternating tiles.', title: 'Alternate Pearls' },
-      { task: 'Repeat a pattern to repair the tide wheel.', title: 'Lagoon Checkpoint' },
-    ],
     name: 'Loop Lagoon',
     number: 3,
     story: 'Repair docks and tide machines by turning repeated actions into loops.',
@@ -101,14 +72,6 @@ const zones: Zone[] = [
     concept: 'Booleans · if/else · variables',
     id: 'cliffs',
     registryZoneId: 'logic-cliffs',
-    missions: [
-      { task: 'Check the wind before choosing a bridge.', title: 'The Wind Flag' },
-      { task: 'Follow either direction shown by a sign.', title: 'Fork in the Path' },
-      { task: 'Collect a lantern only when needed.', title: 'Lantern Check' },
-      { task: 'Repair broken bridges and pass safe ones.', title: 'Repair or Pass' },
-      { task: 'Track three crystals with a variable.', title: 'Count the Crystals' },
-      { task: 'Solve flags, light, and a crystal gate.', title: 'Cliffs Checkpoint' },
-    ],
     name: 'Logic Cliffs',
     number: 4,
     story: 'Read the world, make safe choices, and open a route across the cliffs.',
@@ -117,14 +80,6 @@ const zones: Zone[] = [
     concept: 'Arrays · debugging · planning',
     id: 'observatory',
     registryZoneId: 'maker-observatory',
-    missions: [
-      { task: 'Activate color pads in array order.', title: 'Star List' },
-      { task: 'Deliver samples to every listed station.', title: 'Deliver the Samples' },
-      { task: 'Repair a wrong turn using the trace.', title: 'Find the Bug' },
-      { task: 'Fix a loop that stops one step early.', title: 'Fix the Loop' },
-      { task: 'Plan a route through a mixed rescue arena.', title: 'Plan the Rescue' },
-      { task: 'Power and launch the star observatory.', title: 'CodeQuest Finale' },
-    ],
     name: 'Maker Observatory',
     number: 5,
     story: 'Combine everything you learned to launch the restored observatory.',
@@ -132,15 +87,25 @@ const zones: Zone[] = [
 ];
 
 export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: AdventureMapProps) {
-  const [selectedZoneId, setSelectedZoneId] = useState('meadow');
+  // Open on the zone that holds the next playable mission: that is where the
+  // child left off, and it is the answer to "where am I?"
+  const [selectedZoneId, setSelectedZoneId] = useState(() => {
+    const next = zones.find((zone) =>
+      zoneRows(zone.registryZoneId, completedLevelIds).some((row) => row.state === 'ready'),
+    );
+    return next?.id ?? 'meadow';
+  });
   const selectedZone = zones.find((zone) => zone.id === selectedZoneId) ?? zones[0];
   // A zone becomes playable the moment the registry ships missions for it, so
   // the map can never promise or hide a mission the content package disagrees with.
-  const authored = zoneRows(selectedZone.registryZoneId, completedLevelIds);
-  const rows = authored.length > 0 ? authored : plannedRows(selectedZone);
+  const rows = zoneRows(selectedZone.registryZoneId, completedLevelIds);
   const nextMission = zones
     .flatMap((zone) => zoneRows(zone.registryZoneId, completedLevelIds))
     .find((row) => row.state === 'ready');
+  const nextZone = zones.find((zone) =>
+    zoneRows(zone.registryZoneId, completedLevelIds).some((row) => row.state === 'ready'),
+  );
+  const totalMissions = contentRegistry.missions.size;
   const collection = contentRegistry
     .listMissionsByZone(toZoneId(selectedZone.registryZoneId))
     .flatMap((mission) => mission.rewards);
@@ -152,15 +117,26 @@ export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: A
           <p className="eyebrow">Choose your next coding adventure</p>
           <h1 id="map-title">The Spark Isles</h1>
         </div>
-        <p>Thirty missions connect one living world. Select a region to see what Nova will learn and accomplish there.</p>
+        <section className="map-tracker" aria-label="Where you are">
+          {nextMission ? (
+            <>
+              <p className="map-tracker__where">
+                <span aria-hidden="true">📍</span> You are in <strong>{nextZone?.name}</strong>
+                {' · '}{completedLevelIds.length} of {totalMissions} missions done
+              </p>
+              <p className="map-tracker__next">Next up: <strong>{nextMission.title}</strong> — {nextMission.task}</p>
+              <button className="primary-button" onClick={() => onPlay(nextMission.levelId)} type="button">
+                Play Mission {nextMission.number}: {nextMission.title} <span aria-hidden="true">→</span>
+              </button>
+            </>
+          ) : (
+            <p className="map-tracker__where"><span aria-hidden="true">🏆</span> All {totalMissions} missions done. Replay any of them from a region.</p>
+          )}
+        </section>
       </header>
 
       <div className="map-layout">
-        <div className="map-stage" aria-label="Interactive map of the five Spark Isles regions">
-          <div className="map-stage__hud">
-            <span><i className="map-key map-key--ready" /> Playable starter</span>
-            <span><i className="map-key map-key--planned" /> Planned mission</span>
-          </div>
+        <div className="map-stage" role="group" aria-label="Interactive map of the five Spark Isles regions">
 
           <svg aria-hidden="true" className="map-terrain" viewBox="0 0 1000 650">
             <defs>
@@ -224,12 +200,13 @@ export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: A
           </svg>
 
           {zones.map((zone) => (
+            // A pointer-only target: the zone marker is the accessible control.
             <button
-              aria-label={`Explore ${zone.name}`}
-              aria-pressed={selectedZone.id === zone.id}
+              aria-hidden="true"
               className={`map-hit-region map-hit-region--${zone.id}`}
               key={`region-${zone.id}`}
               onClick={() => setSelectedZoneId(zone.id)}
+              tabIndex={-1}
               type="button"
             />
           ))}
@@ -244,6 +221,7 @@ export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: A
               type="button"
             >
               <span className="zone-marker__number">{zone.number}</span>
+              {nextZone?.id === zone.id ? <span className="zone-marker__here">You are here</span> : null}
               <span className="zone-marker__landmark" aria-hidden="true" />
               <strong>{zone.name}</strong>
               <small>{zone.concept}</small>
@@ -253,25 +231,25 @@ export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: A
           <div className="map-compass" aria-hidden="true"><b>N</b><span>✦</span></div>
         </div>
 
-        <aside className={`zone-dossier zone-dossier--${selectedZone.id}`} aria-live="polite">
+        <aside className={`zone-dossier zone-dossier--${selectedZone.id}`}>
+          <p className="sr-only" role="status">Showing Zone {selectedZone.number}: {selectedZone.name}</p>
           <div className="zone-dossier__heading">
             <span className="zone-number">Zone {selectedZone.number}</span>
-            <span className="zone-status">{authored.length > 0 ? 'Playable' : 'World plan'}</span>
+            <span className="zone-status">{rows.every((row) => row.state === 'done') ? 'Complete' : 'Playable'}</span>
           </div>
           <h2>{selectedZone.name}</h2>
           <p>{selectedZone.story}</p>
           <div className="concept-ribbon"><span>JavaScript focus</span><strong>{selectedZone.concept}</strong></div>
           <ol className="mission-list">
-            {rows.map((mission, index) => {
-              const number = String((selectedZone.number - 1) * 6 + index + 1).padStart(2, '0');
-              const playable = mission.levelId !== undefined && mission.state !== 'locked';
+            {rows.map((mission) => {
+              const number = String(mission.number).padStart(2, '0');
               return (
-                <li className={mission.state === 'ready' ? 'mission-list__ready' : ''} key={mission.title}>
-                  {playable && mission.levelId ? (
+                <li className={mission.state === 'ready' ? 'mission-list__ready' : ''} key={mission.levelId}>
+                  {mission.state !== 'locked' ? (
                     <button
                       aria-label={`Play Mission ${number}: ${mission.title}`}
                       className="mission-list__play"
-                      onClick={() => onPlay(mission.levelId as string)}
+                      onClick={() => onPlay(mission.levelId)}
                       type="button"
                     >
                       <span>{number}</span>
@@ -282,26 +260,14 @@ export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: A
                     <div className="mission-list__planned">
                       <span>{number}</span>
                       <div><strong>{mission.title}</strong><span className="mission-task">{mission.task}</span></div>
-                      <small>{mission.state === 'locked' ? 'Locked' : 'Planned'}</small>
+                      <small>Finish Mission {mission.number - 1} first</small>
                     </div>
                   )}
                 </li>
               );
             })}
           </ol>
-          {nextMission?.levelId ? (
-            <button
-              className="primary-button map-play-button"
-              onClick={() => onPlay(nextMission.levelId as string)}
-              type="button"
-            >
-              Play {nextMission.title} <span aria-hidden="true">→</span>
-            </button>
-          ) : (
-            <p className="map-note">Every Meadow mission is complete. Replay any of them from the list above.</p>
-          )}
-          {authored.length > 0 ? (
-            <section className="collection" aria-labelledby="collection-title">
+          <section className="collection" aria-labelledby="collection-title">
               <h3 id="collection-title">
                 Your collection · {unlockedRewardIds.length} of {collection.length}
               </h3>
@@ -321,8 +287,6 @@ export function AdventureMap({ onPlay, completedLevelIds, unlockedRewardIds }: A
                 })}
               </ul>
             </section>
-          ) : null}
-          {authored.length === 0 && <p className="map-note">This preliminary map previews the full journey. Meadow of Moves is the playable zone today.</p>}
         </aside>
       </div>
     </section>

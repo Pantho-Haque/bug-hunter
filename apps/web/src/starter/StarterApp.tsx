@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 
 import { contentRegistry, listAllMissions } from '@codequest/content';
-import { levelId as toLevelId } from '@codequest/domain';
+import { levelId as toLevelId, type MissionPackageSchema } from '@codequest/domain';
 import {
   createSaveStore,
   type ProgressRecordSchema,
@@ -12,6 +12,7 @@ import { registerServiceWorker } from '../serviceWorker';
 import { AdventureMap } from './AdventureMap';
 import { OnboardingDialog } from './OnboardingDialog';
 import { SettingsDialog } from './SettingsDialog';
+import { levelIdFromPath, missionPath, navigate, useRoute } from './useRoute';
 
 const MissionPreview = lazy(() =>
   import('./MissionPreview').then((module) => ({ default: module.MissionPreview })),
@@ -28,6 +29,13 @@ const downloadBackup = (backup: unknown, fileName: string) => {
   URL.revokeObjectURL(url);
 };
 
+const isUnlocked = (mission: MissionPackageSchema, completed: readonly string[]) =>
+  mission.identity.prerequisiteLevelIds.every((id) => completed.includes(id));
+
+/** The mission that lists this one as a prerequisite — what "next" means on the map. */
+const missionAfter = (levelId: string): MissionPackageSchema | undefined =>
+  listAllMissions().find((mission) => mission.identity.prerequisiteLevelIds.includes(levelId));
+
 export function StarterApp() {
   // One store for the whole session: settings, progress, and saved code all go
   // through the persistence schemas, so a damaged file degrades to defaults
@@ -36,7 +44,6 @@ export function StarterApp() {
   const [settings, setSettings] = useState<SettingsRecordSchema>(() => store.readSettings());
   const [progress, setProgress] = useState<ProgressRecordSchema>(() => store.readProgress());
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [activeLevelId, setActiveLevelId] = useState<string | null>(null);
   const [updateApply, setUpdateApply] = useState<(() => void) | null>(null);
   const [isOffline, setOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
   const [notice, setNotice] = useState<string | null>(() => {
@@ -46,10 +53,35 @@ export function StarterApp() {
       : null;
   });
 
-  const activeMission = activeLevelId
-    ? contentRegistry.getMission(toLevelId(activeLevelId))
+  // Every mission has its own URL; the map is `/`.
+  const path = useRoute();
+  const routedLevelId = levelIdFromPath(path);
+  const routedMission = routedLevelId
+    ? contentRegistry.getMission(toLevelId(routedLevelId))
     : undefined;
-  const reducedEffects = settings.reducedMotion;
+  const activeMission =
+    routedMission && isUnlocked(routedMission, progress.completedLevelIds) ? routedMission : undefined;
+
+  useEffect(() => {
+    // A typed URL for a mission that is missing or still locked goes back to
+    // the map with a plain explanation, rather than a blank screen or a skip.
+    if (routedLevelId && !activeMission) {
+      setNotice(
+        routedMission
+          ? `${routedMission.identity.title} is still locked. Finish the missions before it first.`
+          : 'That mission does not exist.',
+      );
+      navigate('/');
+    }
+  }, [activeMission, routedLevelId, routedMission]);
+
+  const nextMission = activeMission ? missionAfter(activeMission.identity.levelId) : undefined;
+  // The OS preference counts even before the child finds the setting.
+  const prefersReducedMotion = useMemo(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    [],
+  );
+  const reducedEffects = settings.reducedMotion || prefersReducedMotion;
   const agentName = settings.avatarPreset === 'girl' ? 'Nova' : 'Kai';
   // A save with nothing played yet is a first run, so onboarding needs no flag
   // of its own. Dismissing it stamps lastPlayedAt.
@@ -60,6 +92,12 @@ export function StarterApp() {
     setProgress((current) =>
       current.lastPlayedAt ? current : { ...current, lastPlayedAt: new Date().toISOString() },
     );
+
+  const openMission = (id: string) => {
+    markStarted();
+    navigate(missionPath(id));
+    window.scrollTo({ top: 0 });
+  };
 
   useEffect(() => {
     if (!store.writeSettings(settings)) setNotice('Settings could not be saved. Storage is full.');
@@ -85,7 +123,7 @@ export function StarterApp() {
     <div className={reducedEffects ? 'app quiet-mode' : 'app'}>
       <a className="skip-link" href="#main-content">Skip to game</a>
       <header className="topbar">
-        <button className="brand" onClick={() => setActiveLevelId(null)} type="button">
+        <button className="brand" onClick={() => navigate('/')} type="button">
           <span aria-hidden="true">✦</span> CodeQuest 3D
         </button>
         {activeMission === undefined ? (
@@ -94,7 +132,11 @@ export function StarterApp() {
               Settings
             </button>
           </div>
-        ) : null}
+        ) : (
+          <p className="topbar-crumb">
+            <span>{activeMission.identity.levelId.toUpperCase()}</span> {activeMission.identity.title}
+          </p>
+        )}
       </header>
 
       {updateApply ? (
@@ -122,10 +164,7 @@ export function StarterApp() {
         {activeMission === undefined ? (
           <AdventureMap
             completedLevelIds={progress.completedLevelIds}
-            onPlay={(id) => {
-              markStarted();
-              setActiveLevelId(id);
-            }}
+            onPlay={openMission}
             unlockedRewardIds={progress.unlockedRewardIds}
           />
         ) : (
@@ -135,6 +174,11 @@ export function StarterApp() {
               hasReducedEffects={reducedEffects}
               key={activeMission.identity.levelId}
               mission={activeMission}
+              nextMission={
+                nextMission
+                  ? { levelId: nextMission.identity.levelId, title: nextMission.identity.title }
+                  : undefined
+              }
               onCompleted={(id) =>
                 setProgress((current) => {
                   if (current.completedLevelIds.includes(id)) return current;
@@ -152,8 +196,10 @@ export function StarterApp() {
                   };
                 })
               }
-              onReturnToMap={() => setActiveLevelId(null)}
+              onNextMission={nextMission ? () => openMission(nextMission.identity.levelId) : undefined}
+              onReturnToMap={() => navigate('/')}
               qualityPreference={settings.qualityMode}
+              soundVolume={settings.audioVolume}
               store={store}
             />
           </Suspense>
@@ -162,10 +208,7 @@ export function StarterApp() {
       <OnboardingDialog
         agentName={agentName}
         onSkip={markStarted}
-        onStart={() => {
-          markStarted();
-          setActiveLevelId('m01');
-        }}
+        onStart={() => openMission('m01')}
         open={showOnboarding && activeMission === undefined}
       />
       <SettingsDialog
@@ -199,9 +242,11 @@ export function StarterApp() {
         onReducedEffectsChange={(reducedMotion) =>
           setSettings((current) => ({ ...current, reducedMotion }))
         }
+        onSoundVolumeChange={(audioVolume) => setSettings((current) => ({ ...current, audioVolume }))}
         open={settingsOpen}
         quality={settings.qualityMode}
         reducedEffects={reducedEffects}
+        soundVolume={settings.audioVolume}
       />
     </div>
   );

@@ -27,6 +27,7 @@ import {
 } from '@codequest/renderer';
 import { createInitialState, validateMissionObjectives } from '@codequest/simulation';
 
+import { useSoundscape } from '../audio/useSoundscape';
 import { MissionWorkspace } from './MissionWorkspace';
 import type { QualityPreference } from './SettingsDialog';
 
@@ -37,9 +38,14 @@ export interface MissionPreviewProps {
   readonly hasReducedEffects: boolean;
   readonly mission: MissionPackageSchema;
   readonly qualityPreference: QualityPreference;
+  /** 0 silences everything; sounds are feedback only. */
+  readonly soundVolume: number;
   readonly store: SaveStore;
   readonly onReturnToMap: () => void;
   readonly onCompleted: (levelId: string) => void;
+  /** The mission this one unlocks, if any, so success can offer it directly. */
+  readonly nextMission?: { readonly levelId: string; readonly title: string };
+  readonly onNextMission?: () => void;
 }
 
 interface RunSession {
@@ -66,9 +72,12 @@ export function MissionPreview({
   hasReducedEffects,
   mission,
   qualityPreference,
+  soundVolume,
   store,
   onReturnToMap,
   onCompleted,
+  nextMission,
+  onNextMission,
 }: MissionPreviewProps) {
   const agentName = avatarPresentation === 'girl' ? 'Nova' : 'Kai';
   const initialState = useMemo<SimulationStateSchema>(
@@ -88,6 +97,9 @@ export function MissionPreview({
   const workerRef = useRef<Worker | null>(null);
   const [isRunnerReady, setRunnerReady] = useState(false);
   const capabilities = useMemo(() => resolveCapabilities(mission), [mission]);
+  // Every cue is synthesised; the ambient meadow only starts after the first
+  // Run click, which is the user gesture browsers require for audio.
+  const sounds = useSoundscape({ enabled: soundVolume > 0, volume: soundVolume, ambient: true });
   const inferredQuality = inferTierFromHints({
     hardwareConcurrency: typeof navigator === 'undefined' ? 4 : navigator.hardwareConcurrency,
     devicePixelRatio: typeof window === 'undefined' ? 1 : window.devicePixelRatio,
@@ -156,6 +168,14 @@ export function MissionPreview({
     // Progress: push the silence deadline out again.
     armWatchdog(watchdogDeadlineRef.current);
     setEvents((current) => [...current, nextEvent]);
+    if (nextEvent.type === 'commandApplied') {
+      const kind = nextEvent.command.kind;
+      sounds.play(kind === 'moveForward' ? 'move' : kind === 'collect' || kind === 'interact' ? kind : 'turn');
+    } else if (nextEvent.type === 'commandRejected') {
+      sounds.play('blocked');
+    } else {
+      sounds.play('fault');
+    }
     if (nextEvent.type === 'runFault') {
       setFault(nextEvent);
       workerFinishedRef.current = true;
@@ -179,7 +199,7 @@ export function MissionPreview({
         workerFinishedRef.current = true;
       }
     }, hasReducedEffects ? 0 : commandPlaybackDuration(nextEvent));
-  }, [armWatchdog, hasReducedEffects, queuedEvents]);
+  }, [armWatchdog, hasReducedEffects, queuedEvents, sounds]);
 
   const handleWorkerMessage = useCallback((message: WorkerToHostSchema) => {
     // 'ready' arrives during warm-up, before any run exists.
@@ -244,6 +264,7 @@ export function MissionPreview({
       setSimulation(initialState);
       setFault(null);
       setRunPhase('running');
+      sounds.play('ui');
 
       const runId = `run-${Date.now()}`;
       const worker = getWorker();
@@ -294,7 +315,7 @@ export function MissionPreview({
       getWorkerRef.current = getWorker;
       armWatchdog(budgets.deadlineMs);
     },
-    [armWatchdog, capabilities, getWorker, initialState, mission, stopSession],
+    [armWatchdog, capabilities, getWorker, initialState, mission, sounds, stopSession],
   );
 
   const handlePause = useCallback(() => {
@@ -340,8 +361,10 @@ export function MissionPreview({
   }, [agentName, fault, mission, runPhase, simulation]);
 
   useEffect(() => {
-    if (outcome?.status === 'success') onCompleted(mission.identity.levelId);
-  }, [mission, onCompleted, outcome]);
+    if (outcome?.status !== 'success') return;
+    sounds.play('success');
+    onCompleted(mission.identity.levelId);
+  }, [mission, onCompleted, outcome, sounds]);
 
   // Any terminal state retires the watchdog; otherwise it would fire later and
   // replace a finished run's result with a false timeout.
@@ -373,7 +396,7 @@ export function MissionPreview({
           state={simulation}
           toolbar={(
             <button className="scene-view-action" onClick={onReturnToMap} type="button">
-              ← Map
+              <span aria-hidden="true">←</span> Back to the map
             </button>
           )}
         />
@@ -392,6 +415,9 @@ export function MissionPreview({
         onRun={handleRun}
         onStep={handleStep}
         isRunnerReady={isRunnerReady}
+        nextMissionTitle={nextMission?.title}
+        onNextMission={onNextMission}
+        onReturnToMap={onReturnToMap}
         outcome={outcome}
         runPhase={runPhase}
         store={store}

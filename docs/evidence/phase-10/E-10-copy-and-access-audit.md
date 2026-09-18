@@ -17,7 +17,7 @@ Result: **all checks pass**
 | No horizontal scroll at 200% text | pass | layout reflows |
 | No clipped controls or headings at 200% text | pass | none |
 | Reduced motion suppresses animation and transitions | pass | 0 element(s) still animate under prefers-reduced-motion: reduce |
-| Rendered map copy reads at or below grade 5 | pass | grade 2.9 |
+| Rendered map copy reads at or below grade 5 | pass | grade 2.8 |
 
 Reading level of authored copy and runner fault copy are covered by unit tests, not
 here: see `packages/content/src/reading-level.test.ts` and the fault-copy case in

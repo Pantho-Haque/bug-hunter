@@ -100,20 +100,10 @@ export function AvatarEntity({
   );
 }
 
-const facingDegreesFromName = (name: string): number => {
-  switch (name) {
-    case 'north':
-      return 0;
-    case 'east':
-      return Math.PI / 2;
-    case 'south':
-      return Math.PI;
-    case 'west':
-      return -Math.PI / 2;
-    default:
-      return 0;
-  }
-};
+const facingDegreesFromName = (name: string): number =>
+  name === 'north' || name === 'east' || name === 'south' || name === 'west'
+    ? facingToRadians(name)
+    : 0;
 
 const shortestAngle = (from: number, to: number): number => {
   let diff = (to - from) % (Math.PI * 2);

@@ -1,4 +1,3 @@
-import type { DirectionSchema } from '@codequest/domain';
 
 export type AvatarPresentation = 'boy' | 'girl';
 
@@ -39,15 +38,4 @@ const girlTheme: AvatarRigTheme = {
 export const avatarTheme = (presentation: AvatarPresentation): AvatarRigTheme =>
   presentation === 'boy' ? boyTheme : girlTheme;
 
-export const facingToRadians = (facing: DirectionSchema): number => {
-  switch (facing) {
-    case 'north':
-      return 0;
-    case 'east':
-      return Math.PI / 2;
-    case 'south':
-      return Math.PI;
-    case 'west':
-      return -Math.PI / 2;
-  }
-};
+export { facingToRadians } from '../world/worldTransform';

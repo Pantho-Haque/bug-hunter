@@ -134,7 +134,7 @@ const runQuality = async (page, base, quality) => {
         const button = [...document.querySelectorAll('button')].find((b) =>
           /Run my code|Run again/.test(b.textContent ?? ''),
         );
-        return Boolean(button) && !button.disabled;
+        return Boolean(button) && !button.disabled && button.getAttribute('aria-disabled') !== 'true';
       },
       null,
       { timeout: 60000 },

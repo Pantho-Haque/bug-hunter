@@ -468,3 +468,66 @@ textarea { background: #07152f; border: 1px solid #5178ad; border-radius: 12px; 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+.map-tracker { background: #10264c; border: 1px solid #5d89c8; border-radius: 16px; display: grid; gap: 8px; justify-items: start; padding: 14px 16px; }
+
+.map-tracker__where, .map-tracker__next { color: #d7e8ff; font-size: .9rem; line-height: 1.4; margin: 0; }
+
+.map-tracker__where strong, .map-tracker__next strong { color: #ffe166; }
+
+.zone-marker__here { background: #ffe166; border-radius: 999px; color: #15233f; font-size: .58rem; font-weight: 800; grid-column: 1 / -1; justify-self: start; margin-top: 4px; padding: 2px 7px; text-transform: uppercase; }
+
+.run-outcome { position: relative; overflow: hidden; }
+
+.run-outcome__actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+
+.run-outcome__finale { color: #bdf0d6; font-weight: 800; margin: 0; }
+
+.run-outcome__confetti { inset: 0; pointer-events: none; position: absolute; }
+
+.run-outcome__confetti i { animation: confetti-fall 1.6s ease-out forwards; background: hsl(calc(var(--i) * 26deg) 90% 65%); border-radius: 2px; height: 8px; left: calc(var(--i) * 7%); position: absolute; top: -10px; transform: rotate(calc(var(--i) * 40deg)); width: 6px; }
+
+@keyframes confetti-fall { to { opacity: 0; transform: translateY(120vh) rotate(calc(var(--i) * 40deg + 300deg)); } }
+
+.quiet-mode .run-outcome__confetti { display: none; }
+
+.topbar-crumb { color: #d7e8ff; font-size: .84rem; font-weight: 700; margin: 0; }
+
+.topbar-crumb span { background: #173966; border-radius: 6px; color: #ffe166; font-size: .7rem; margin-right: 8px; padding: 2px 6px; }
+
+input[type='range'] { accent-color: #ffe166; inline-size: 100%; margin-top: 6px; }
+
+/* Review fixes: dark UA widgets, visible loading state, readable captions, hover/active feedback. */
+:root { color-scheme: dark; }
+
+button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+main > .scene-loading { color: #eaf3ff; display: grid; min-height: 40vh; place-items: center; position: static; }
+
+.mission-task { font-size: .8rem; }
+
+.mission-list__play small, .mission-list__planned small { font-size: .74rem; }
+
+.concept-ribbon span { font-size: .74rem; }
+
+.zone-marker small { font-size: clamp(.62rem, 1.2cqi, .72rem); }
+
+.zone-marker__here { font-size: .62rem; }
+
+.map-compass b { font-size: .72rem; }
+
+.primary-button:hover { background: #fff0a3; }
+
+.secondary-button:hover, .avatar-button:hover, .text-button:hover { background: #2f4d82; }
+
+.primary-button:active, .secondary-button:active { transform: translateY(1px); }
+
+.primary-button[aria-disabled='true'] { cursor: wait; opacity: .7; }
+
+.primary-button[aria-disabled='true']:hover { background: #ffe166; }
+
+.settings-dialog__content { overscroll-behavior: contain; }
+
+.mission-tools__note { color: #8be9fd; font-size: .78rem; line-height: 1.4; margin: 6px 0 0; }
+
+.mission-hints__done { color: #bdf0d6; font-size: .82rem; font-weight: 700; margin: 0; }
