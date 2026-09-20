@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { PerspectiveCamera } from 'three';
 import { Plane, Raycaster, Vector2, Vector3 } from 'three';
 
 import type { MissionPackageSchema, SimulationStateSchema } from '@codequest/domain';
 
-import { defaultWorldConfig } from '../world/worldTransform';
+import { cellBounds, defaultWorldConfig } from '../world/worldTransform';
+import { blockerAppearance } from '../world/blockerAppearance';
 
 export interface FollowCameraRigProps {
   readonly state: SimulationStateSchema;
@@ -14,9 +15,8 @@ export interface FollowCameraRigProps {
   readonly resetToken: number;
 }
 
-const HOME_DISTANCE = 7;
-const HOME_ELEVATION = Math.atan2(4.5, HOME_DISTANCE);
-const HOME_LOOK_AHEAD = 1.8;
+const HOME_DISTANCE = 10;
+const HOME_ELEVATION = Math.PI / 4;
 // π puts the camera south of the avatar looking north: north is up on screen and
 // east is right, the same orientation as the minimap.
 const HOME_AZIMUTH = Math.PI;
@@ -27,6 +27,19 @@ const MAX_ELEVATION = Math.PI * 0.43;
 const MAX_FOCUS_OFFSET = 4;
 // Blockers are a 1-unit box plus a thin cap (see MissionObjectLayer).
 const BLOCKER_TOP = 1.15;
+
+/** Fit the board at entry/reset, including narrow canvases beside the editor. */
+export const missionCameraFrame = (mission: Parameters<typeof cellBounds>[0], aspect: number) => {
+  const bounds = cellBounds(mission);
+  const radius = Math.hypot((bounds.maxX - bounds.minX) / 2 + 1, 1.5,
+    (bounds.maxZ - bounds.minZ) / 2 + 1);
+  const halfFov = Math.atan(Math.tan(26 * Math.PI / 180) * Math.min(1, Math.max(0.1, aspect)));
+  return {
+    centerX: (bounds.minX + bounds.maxX) / 2,
+    centerZ: (bounds.minZ + bounds.maxZ) / 2,
+    distance: Math.max(HOME_DISTANCE, radius / Math.sin(halfFov)),
+  };
+};
 
 /** Returns the distance to the first blocker intersecting the camera sight-line. */
 export const occludedCameraDistance = (
@@ -73,7 +86,9 @@ export const occludedCameraDistance = (
 };
 
 export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: FollowCameraRigProps) {
-  const { camera, gl } = useThree();
+  const { camera, gl, size } = useThree();
+  const framing = useMemo(() => missionCameraFrame(mission, size.width / Math.max(1, size.height)),
+    [mission, size.width, size.height]);
   const azimuthRef = useRef<number>(HOME_AZIMUTH);
   const distanceRef = useRef<number>(HOME_DISTANCE);
   const elevationRef = useRef<number>(HOME_ELEVATION);
@@ -82,7 +97,7 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
   const azimuthTargetRef = useRef<number>(HOME_AZIMUTH);
   const distanceTargetRef = useRef<number>(HOME_DISTANCE);
   const elevationTargetRef = useRef<number>(HOME_ELEVATION);
-  const focusOffsetRef = useRef(new Vector3(0, 0, -HOME_LOOK_AHEAD));
+  const focusOffsetRef = useRef(new Vector3());
   const desiredPosition = useRef(new Vector3());
   const desiredTarget = useRef(new Vector3());
   const currentTarget = useRef(new Vector3());
@@ -104,19 +119,21 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
 
   useEffect(() => {
     azimuthRef.current = HOME_AZIMUTH;
-    distanceRef.current = HOME_DISTANCE;
+    distanceRef.current = framing.distance;
     elevationRef.current = HOME_ELEVATION;
     azimuthTargetRef.current = HOME_AZIMUTH;
-    distanceTargetRef.current = HOME_DISTANCE;
+    distanceTargetRef.current = framing.distance;
     elevationTargetRef.current = HOME_ELEVATION;
-    focusOffsetRef.current.set(0, 0, -HOME_LOOK_AHEAD);
-    desiredPosition.current.set(0, Math.sin(HOME_ELEVATION) * HOME_DISTANCE, Math.cos(HOME_ELEVATION) * HOME_DISTANCE);
-    desiredTarget.current.set(0, 0.9, 0);
+    focusOffsetRef.current.set(framing.centerX - state.avatar.cellX, 0, framing.centerZ - state.avatar.cellZ);
+    desiredPosition.current.set(framing.centerX, 0.9 + Math.sin(HOME_ELEVATION) * framing.distance,
+      framing.centerZ + Math.cos(HOME_ELEVATION) * framing.distance);
+    desiredTarget.current.set(framing.centerX, 0.9, framing.centerZ);
     currentTarget.current.copy(desiredTarget.current);
     hasAvatarAnchor.current = false;
     camera.position.copy(desiredPosition.current);
     camera.lookAt(desiredTarget.current);
-  }, [resetToken, camera]);
+    // Avatar position is sampled only on reset/resize, not on every command.
+  }, [resetToken, camera, framing]);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -158,7 +175,7 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
     const clampElevation = (value: number) =>
       Math.max(MIN_ELEVATION, Math.min(MAX_ELEVATION, value));
     const clampDistance = (value: number) =>
-      Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, value));
+      Math.max(MIN_DISTANCE, Math.min(Math.max(MAX_DISTANCE, framing.distance * 1.5), value));
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -239,7 +256,7 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
       canvas.style.cursor = '';
       canvas.style.touchAction = '';
     };
-  }, [camera, gl, state.avatar.cellX, state.avatar.cellZ]);
+  }, [camera, gl, state.avatar.cellX, state.avatar.cellZ, framing.distance]);
 
   useFrame((_, delta) => {
     // Ease the live camera values toward their input targets.
@@ -277,6 +294,8 @@ export function FollowCameraRig({ state, mission, reducedEffects, resetToken }: 
     const blockerCells: Array<{ readonly cellX: number; readonly cellZ: number }> = [];
     for (const obj of mission.objects) {
       if (obj.kind !== 'blocker') continue;
+      if (blockerAppearance(obj) !== 'solid') continue;
+      if (obj.unlockedByFlag && state.flags[obj.unlockedByFlag] === true) continue;
       blockerCells.push(...obj.occupiedCells);
     }
     const blockedAt = occludedCameraDistance(desiredTarget.current, desiredPosition.current, blockerCells);

@@ -8,7 +8,7 @@ import {
 } from 'three';
 
 /** Small, deterministic colour maps supply surface grain without external downloads. */
-export function surfaceTexture(kind: 'fabric' | 'grass' | 'bark' | 'stone' | 'hair' | 'foliage') {
+export function surfaceTexture(kind: 'fabric' | 'grass' | 'bark' | 'stone' | 'hair' | 'foliage' | 'sand' | 'slate') {
   const size = 128;
   const pixels = new Uint8Array(size * size * 4);
   const leaves = Array.from({ length: 130 }, (_, i) => {
@@ -35,6 +35,12 @@ export function surfaceTexture(kind: 'fabric' | 'grass' | 'bark' | 'stone' | 'ha
           : kind === 'fabric'
             ? 0.83 + weave + grain * 0.1
             : 0.77 + grain * 0.2;
+      if (kind === 'sand') {
+        // Low-contrast ripples keep the beach readable behind the mission tiles.
+        value = 0.88 + Math.sin(y * Math.PI / 16 + Math.sin(x * Math.PI / 64)) * 0.035 + grain * 0.06;
+      } else if (kind === 'slate') {
+        value = 0.82 + Math.sin((x + y) * Math.PI / 32) * 0.035 + grain * 0.09;
+      }
       const i = (y * size + x) * 4;
       let alpha = 255;
       if (kind === 'foliage') {
@@ -62,7 +68,7 @@ export function surfaceTexture(kind: 'fabric' | 'grass' | 'bark' | 'stone' | 'ha
   texture.magFilter = LinearFilter;
   texture.minFilter = LinearMipmapLinearFilter;
   texture.generateMipmaps = true;
-  const repeat = kind === 'grass' ? 36 : kind === 'foliage' ? 1 : 2;
+  const repeat = kind === 'grass' ? 36 : kind === 'sand' || kind === 'slate' ? 24 : kind === 'foliage' ? 1 : 2;
   texture.repeat.set(repeat, repeat);
   texture.needsUpdate = true;
   return texture;

@@ -5,6 +5,7 @@ import type { Group } from 'three';
 import type { MissionObjectSchema, SimulationStateSchema } from '@codequest/domain';
 
 import type { QualityTier } from '../quality/qualityTier';
+import { blockerAppearance } from '../world/blockerAppearance';
 import { defaultWorldConfig, worldFromCell } from '../world/worldTransform';
 
 export interface MissionObjectLayerProps {
@@ -153,11 +154,34 @@ const BlockerObjectMesh = ({
   // decides how an already-open gate looks.
   const open =
     object.unlockedByFlag !== undefined && state.flags[object.unlockedByFlag] === true;
+  const appearance = blockerAppearance(object);
 
   return (
     <group>
       {object.occupiedCells.map((cell, index) => {
         const [x, y, z] = worldFromCell(cell);
+        if (appearance !== 'solid') {
+          const water = appearance === 'water';
+          return (
+            <group key={`${object.id}-${index}`} position={[x, y, z]}>
+              <mesh position={[0, -0.005, 0]} receiveShadow>
+                <boxGeometry args={[1, 0.04, 1]} />
+                <meshStandardMaterial color={water ? '#167e96' : '#403943'} roughness={water ? 0.3 : 1} />
+              </mesh>
+              {water ? [-0.2, 0.2].map((offset) => (
+                <mesh key={offset} position={[offset * 0.4, 0.02, offset]} rotation={[-Math.PI / 2, 0, 0]}>
+                  <planeGeometry args={[0.38, 0.025]} />
+                  <meshBasicMaterial color="#85d4dc" />
+                </mesh>
+              )) : (
+                <mesh position={[0, 0.018, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                  <planeGeometry args={[0.8, 0.8]} />
+                  <meshBasicMaterial color="#24232e" />
+                </mesh>
+              )}
+            </group>
+          );
+        }
         return (
           <group key={`${object.id}-${index}`} position={[x, y, z]}>
             <mesh castShadow={!open} position={[0, open ? 0.06 : 0.5, 0]}>
@@ -256,14 +280,58 @@ const DecorObjectMesh = ({ object }: { object: Extract<MissionObjectSchema, { ki
         const [x, , z] = worldFromCell(cell);
         return (
           <group key={`${object.id}-${index}`} position={[x, 0, z]}>
-            <mesh castShadow position={[0, 0.75, 0]}>
-              <cylinderGeometry args={[0.18, 0.24, 1.5, 7]} />
-              <meshStandardMaterial color={decorPalette.trunk} flatShading />
-            </mesh>
-            <mesh castShadow position={[0, 2, 0]}>
-              <coneGeometry args={[1.1, 2.5, 7]} />
-              <meshStandardMaterial color={decorPalette.foliage} flatShading />
-            </mesh>
+            {object.assetId === 'asset.prop.turning-sign' ? (
+              <>
+                <mesh castShadow position={[0, 0.42, 0]}>
+                  <cylinderGeometry args={[0.045, 0.065, 0.84, 6]} />
+                  <meshStandardMaterial color={decorPalette.trunk} flatShading />
+                </mesh>
+                <mesh castShadow position={[0, 0.83, 0]}>
+                  <boxGeometry args={[0.7, 0.25, 0.09]} />
+                  <meshStandardMaterial color="#e6cb8d" flatShading />
+                </mesh>
+                {[-1, 1].map((side) => (
+                  <mesh key={side} position={[-0.12, 0.83 + side * 0.045, 0.055]} rotation={[0, 0, side * Math.PI / 4]}>
+                    <boxGeometry args={[0.18, 0.045, 0.03]} />
+                    <meshStandardMaterial color="#473520" />
+                  </mesh>
+                ))}
+              </>
+            ) : object.assetId === 'asset.forest.ferns' ? (
+              <group>
+                {Array.from({ length: 6 }, (_, i) => {
+                  const angle = i * Math.PI / 3;
+                  return (
+                    <mesh key={i} castShadow position={[Math.sin(angle) * 0.17, 0.22, Math.cos(angle) * 0.17]}
+                      rotation={[0.65, angle, 0]} scale={[0.08, 0.28, 0.035]}>
+                      <sphereGeometry args={[1, 6, 4]} />
+                      <meshStandardMaterial color={decorPalette.foliage} flatShading />
+                    </mesh>
+                  );
+                })}
+              </group>
+            ) : object.assetId === 'asset.grass.reeds' ? (
+              <group>
+                {[-1, 0, 1].map((i) => (
+                  <group key={i} position={[i * 0.12, 0, i * 0.09]}>
+                    <mesh position={[0, 0.26, 0]}>
+                      <cylinderGeometry args={[0.025, 0.035, 0.52, 5]} />
+                      <meshStandardMaterial color={decorPalette.foliage} />
+                    </mesh>
+                    <mesh position={[0, 0.55, 0]}>
+                      <cylinderGeometry args={[0.05, 0.05, 0.2, 6]} />
+                      <meshStandardMaterial color="#88613a" />
+                    </mesh>
+                  </group>
+                ))}
+              </group>
+            ) : (
+              // Unknown scenery remains a compact, visible obstacle in its cell.
+              <mesh castShadow position={[0, 0.2, 0]} scale={[1, 0.65, 1]}>
+                <icosahedronGeometry args={[0.38, 0]} />
+                <meshStandardMaterial color="#879181" flatShading />
+              </mesh>
+            )}
           </group>
         );
       })}

@@ -16,6 +16,7 @@ export interface ZoneTheme {
   readonly sun: { readonly color: string; readonly intensity: number };
   readonly groundBase: string;
   readonly groundTop: string;
+  readonly groundTexture: 'grass' | 'sand' | 'slate';
   readonly tile: string;
   readonly grass: string;
   readonly grassDensity: number;
@@ -28,6 +29,8 @@ export interface ZoneTheme {
   readonly rock: string;
   readonly rockCount: number;
   readonly birds: boolean;
+  readonly accent: string;
+  readonly ornament: 'flower' | 'mushroom' | 'shell' | 'crystal' | 'star';
   /** Small drifting lights: fireflies, star motes. */
   readonly motes?: { readonly color: string; readonly count: number; readonly height: number };
 }
@@ -39,7 +42,7 @@ const rgb = (hex: string): readonly [number, number, number] => [
 ];
 
 const meadow: ZoneTheme = {
-  skyTop: rgb('#215e9e'),
+  skyTop: rgb('#439cdb'),
   skyHorizon: rgb('#b5cfdb'),
   sunColor: rgb('#ffd487'),
   cloudAmount: 1,
@@ -48,49 +51,55 @@ const meadow: ZoneTheme = {
   hemisphere: ['#c4ddf3', '#6c644b', 1.1],
   sun: { color: '#fff0d5', intensity: 2.1 },
   groundBase: '#647248',
-  groundTop: '#869967',
+  groundTop: '#9dbe73',
+  groundTexture: 'grass',
   tile: '#d4c69a',
   grass: '#758c49',
   grassDensity: 1,
   windScale: 1,
   trunk: '#8b7353',
-  foliageNear: '#80975b',
-  foliageFar: '#58764a',
+  foliageNear: '#9acb64',
+  foliageFar: '#65a575',
   foliageShape: 'round',
   treeDensity: 1,
   rock: '#99978a',
   rockCount: 10,
   birds: true,
+  accent: '#ffb9dc',
+  ornament: 'flower',
 };
 
 const forest: ZoneTheme = {
   skyTop: rgb('#1b3a4a'),
-  skyHorizon: rgb('#88a89a'),
+  skyHorizon: rgb('#a8d5bc'),
   sunColor: rgb('#ffe1a0'),
   cloudAmount: 0.5,
   starAmount: 0,
   fog: '#7f9a8b',
-  hemisphere: ['#8fb3a6', '#2e3d2a', 0.9],
+  hemisphere: ['#b2ddc7', '#3b5540', 1.2],
   sun: { color: '#ffe6b8', intensity: 1.5 },
   groundBase: '#3f5433',
   groundTop: '#587247',
+  groundTexture: 'grass',
   tile: '#b9a77c',
   grass: '#4f7a3a',
   grassDensity: 0.8,
   windScale: 0.6,
   trunk: '#5f4a38',
-  foliageNear: '#4a7a3d',
+  foliageNear: '#69a76d',
   foliageFar: '#2f5232',
   foliageShape: 'cone',
   treeDensity: 1.9,
   rock: '#6f7a6a',
   rockCount: 14,
   birds: false,
+  accent: '#ffb28a',
+  ornament: 'mushroom',
   motes: { color: '#d9ff7a', count: 22, height: 1.1 },
 };
 
 const lagoon: ZoneTheme = {
-  skyTop: rgb('#1f7bb8'),
+  skyTop: rgb('#36bad0'),
   skyHorizon: rgb('#c9ecf2'),
   sunColor: rgb('#fff2c2'),
   cloudAmount: 0.7,
@@ -99,7 +108,8 @@ const lagoon: ZoneTheme = {
   hemisphere: ['#d8f2ff', '#8a7a55', 1.3],
   sun: { color: '#fff8e6', intensity: 2.5 },
   groundBase: '#b9a66f',
-  groundTop: '#d9c88f',
+  groundTop: '#f0d9a5',
+  groundTexture: 'sand',
   tile: '#eee3bf',
   grass: '#9ab86a',
   grassDensity: 0.45,
@@ -112,6 +122,8 @@ const lagoon: ZoneTheme = {
   rock: '#e8e1d3',
   rockCount: 18,
   birds: true,
+  accent: '#ffd4c7',
+  ornament: 'shell',
 };
 
 const cliffs: ZoneTheme = {
@@ -124,7 +136,8 @@ const cliffs: ZoneTheme = {
   hemisphere: ['#e9d7bf', '#7a5a3f', 1.0],
   sun: { color: '#ffe0b5', intensity: 2.3 },
   groundBase: '#8c6440',
-  groundTop: '#a7794f',
+  groundTop: '#d39a70',
+  groundTexture: 'slate',
   tile: '#d9b98a',
   grass: '#c2b26a',
   grassDensity: 0.3,
@@ -137,6 +150,8 @@ const cliffs: ZoneTheme = {
   rock: '#b08a62',
   rockCount: 32,
   birds: true,
+  accent: '#7edcd2',
+  ornament: 'crystal',
 };
 
 const observatory: ZoneTheme = {
@@ -149,8 +164,9 @@ const observatory: ZoneTheme = {
   hemisphere: ['#8f9ad8', '#2a2f4e', 1.4],
   sun: { color: '#d6e0ff', intensity: 1.9 },
   groundBase: '#3a4470',
-  groundTop: '#4d5a86',
-  tile: '#a9b1de',
+  groundTop: '#6876a7',
+  groundTexture: 'slate',
+  tile: '#c7bfee',
   grass: '#5d6f9a',
   grassDensity: 0.35,
   windScale: 0.5,
@@ -162,6 +178,8 @@ const observatory: ZoneTheme = {
   rock: '#7280a8',
   rockCount: 12,
   birds: false,
+  accent: '#ffe9a8',
+  ornament: 'star',
   motes: { color: '#ffffff', count: 30, height: 3.2 },
 };
 

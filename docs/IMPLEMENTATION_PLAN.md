@@ -205,6 +205,28 @@ Guidance is now concrete. `describeGuidance` in `packages/editor` turns the simu
 
 The environment now changes with the zone and the mission, so the child does not see the same meadow thirty times. `packages/renderer/src/environment/zoneThemes.ts` holds one presentation-only theme per registry zone — Meadow of Moves keeps the bright meadow; Echo Forest is a dense pine forest under a green haze with fireflies; Loop Lagoon is sand, pale shells and sparse round trees under a turquoise sky; Logic Cliffs is orange rock, dry grass, many boulders and a strong wind; Maker Observatory is a moonlit night with stars and drifting star-motes. The sky shader takes its colours, cloud and star amounts from the theme; lights, fog, ground, tiles, grass, trunks, foliage (round canopies or pine cones), rocks and birds all follow it; and each mission's ordinal drifts the sky from morning toward a warm evening. Scenery placement is seeded from the level id, so every mission scatters its trees, grass and rocks differently, still outside the mission footprint. Nothing in a theme reaches the simulation. Verified against the dev server with one screenshot per zone (m01, m04, m07, m13, m16, m19, m25, m28, m30) after raising the night palette so the grid, tiles and objects stay readable.
 
+### Environment visibility review — 2026-09-20
+
+The five zone themes are retained. Trees now have a six-cell clearance from the
+mission bounds and smaller canopies. Camera-aware fading clears foreground
+trees and rocks when their projected bounds overlap the board, including their
+shadows. Camera entry/reset framing fits the board to the canvas aspect ratio;
+fog starts beyond the board when zoomed out. The ground surface no longer hides
+floor markers, and environment motion respects the app's reduced-effects setting.
+
+Asset mismatches found during browser inspection were corrected: ferns, reeds,
+and the turning sign no longer use the generic tall-tree fallback. Water and
+ravines render as low terrain hazards instead of opaque walls, while collision
+rules remain unchanged. Pines have layered silhouettes; the lagoon has sand
+ripples, cliffs and observatory have stone grain, and decorative crystals and
+stars have distinct shapes.
+
+Verification: 40 renderer tests passed, including new camera-framing and scenery
+occlusion regressions; renderer typecheck/lint and production build passed.
+Browser checks covered all five zones, forest orbit/zoom/reset, and a successful
+M01 run. These checks do not replace the pending target-device performance or
+child-playtest evidence.
+
 ## Phase 12 — Release hardening and launch
 
 **Goal:** prove the complete game is safe, stable, accessible, and supportable.

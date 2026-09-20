@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { Vector3 } from 'three';
+import { PerspectiveCamera, Vector3 } from 'three';
 
-import { occludedCameraDistance } from './FollowCameraRig';
+import { missionCameraFrame, occludedCameraDistance } from './FollowCameraRig';
+
+describe('mission camera framing', () => {
+  it.each([0.45, 1, 1.8])('keeps both ends of a long board visible at aspect %s', (aspect) => {
+    const frame = missionCameraFrame({ objects: [
+      { cell: { cellX: -2, cellZ: -4 } },
+      { cell: { cellX: 16, cellZ: 3 } },
+    ] }, aspect);
+    const camera = new PerspectiveCamera(52, aspect, 0.1, 200);
+    camera.position.set(frame.centerX, 0.9 + Math.sin(Math.PI / 4) * frame.distance,
+      frame.centerZ + Math.cos(Math.PI / 4) * frame.distance);
+    camera.lookAt(frame.centerX, 0.9, frame.centerZ);
+    camera.updateMatrixWorld();
+    for (const x of [-2.5, 16.5]) for (const z of [-4.5, 3.5]) for (const y of [0, 2.5]) {
+      const screen = new Vector3(x, y, z).project(camera);
+      expect(Math.abs(screen.x)).toBeLessThan(1);
+      expect(Math.abs(screen.y)).toBeLessThan(1);
+    }
+  });
+});
 
 describe('occludedCameraDistance', () => {
   it('shortens only when a blocker is actually between target and camera', () => {

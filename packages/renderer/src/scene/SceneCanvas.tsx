@@ -55,7 +55,7 @@ export function SceneCanvas({
         shadows={cfg.shadowEnabled}
         gl={{ antialias: cfg.tier !== 'low', powerPreference: 'high-performance' }}
       >
-        <EnvironmentLayer mission={mission} quality={quality} />
+        <EnvironmentLayer mission={mission} quality={quality} reducedEffects={reducedEffects} />
         <MissionObjectLayer
           objects={mission.objects}
           quality={quality}
